@@ -9,7 +9,7 @@
       "url": "http://localhost:3534/api/v1"
     },
     {
-      "url": "https://backendwin.addityar.xyz"
+      "url": "http://103.186.0.54:3534/api/v1"
     }
   ],
 	"security": [
