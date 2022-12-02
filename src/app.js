@@ -44,7 +44,7 @@ try {
   app.use('/api/v1/auth', auth(models));
   app.use('/api/v1/settings', verifyToken, settings(models));
   app.use('/api/v1/admin', verifyToken, admin(models));
-  app.use('/api/v1/kmart', verifyToken, kmart(models));
+  app.use('/api/v1/kmart', kmart(models));
   
   app.use(swagger());
   

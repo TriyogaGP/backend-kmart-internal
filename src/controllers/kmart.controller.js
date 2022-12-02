@@ -111,11 +111,11 @@ function exportExcel () {
 					shippingType: val.shippingType,
 					carrierName: val.carrierName,
 					Product: val.productDetails[0].name,
-					namaPembeli: val.dataUser.fullname,
-					notelpPembeli: val.dataUser.devicenumber,
+					namaPembeli: val.dataUser.consumerType != 'MEMBER' ? dataMember.fullname : val.dataUser.fullname,
+					notelpPembeli: val.dataUser.consumerType != 'MEMBER' ? dataMember.devicenumber : val.dataUser.devicenumber,
 					memberRefCode: val.dataUser.customerRegRefcode,
-					namaReferal: val.dataUser.consumerType != 'MEMBER' ? dataMember.fullname : val.dataUser.fullname,
-					telpReferal: val.dataUser.consumerType != 'MEMBER' ? dataMember.devicenumber : val.dataUser.devicenumber,
+					namaReferal: val.dataUser.consumerType != 'MEMBER' ? dataMember.fullname : '',
+					telpReferal: val.dataUser.consumerType != 'MEMBER' ? dataMember.devicenumber : '',
 				}
 				kumpuldata.push(emit)
 			})
@@ -128,15 +128,14 @@ function exportExcel () {
 				{ header: "Kurir", key: "carrierName", width: 20 },
 				{ header: "No Resi", key: "shippingReceiptNumber", width: 20 },
 				{ header: "Nama Pembeli", key: "namaPembeli", width: 20 },
-				{ header: "Telpon Pembeli", key: "notelpPembeli", width: 20 },
-				{ header: "Telpon Pembeli", key: "notelpPembeli", width: 20 },
+				{ header: "Telepon Pembeli", key: "notelpPembeli", width: 20 },
 				{ header: "Member Ref Code", key: "memberRefCode", width: 20 },
 				{ header: "Status", key: "orderStatusLatest", width: 20 },
 				{ header: "COD / NO COD", key: "shippingType", width: 20 },
 				{ header: "Nama Referal", key: "namaReferal", width: 20 },
 				{ header: "Kontak Referal", key: "telpReferal", width: 20 },
 			];
-			const figureColumns = [1, 2, 3, 4];
+			const figureColumns = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 			figureColumns.forEach((i) => {
 				worksheet.getColumn(i).alignment = { horizontal: "left" };
 			});
