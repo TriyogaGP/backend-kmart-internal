@@ -1,5 +1,6 @@
 const { response, OK, NOT_FOUND, NO_CONTENT } = require('../utils/response.utils');
 const { request } = require('../utils/request')
+const { convertDateTime2 } = require('../utils/helper.utils')
 const excel = require("exceljs");
 const _ = require("lodash");
 const { DateTime } = require('luxon')
@@ -169,58 +170,61 @@ function getProductVariant () {
 
 function exportExcel () {
   return async (req, res, next) => {
-		let { startdate, enddate } = req.query
+		let { startdate, enddate, limit, totalPages } = req.query
     try {
-			const { data: response } = await request({
-				url: `${KMART_BASE_URL}admin/orders/get-data-harian`,
-				method: 'GET',
-				params: { dateRange: `${startdate},${enddate}` },
-				headers: {
-					// 'Authorization': `Bearer ${TOKEN}`,
-					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
-				},
-			})
-
-			let kumpuldata = []
-			const { records } = response.data
-			records.map(val => {
-				let emit = {
-					orderNumber: val.orderNumber,
-					createdAt: val.createdAt,
-					shippingReceiptNumber: val.shippingReceiptNumber,
-					orderStatusLatest: val.orderStatusLatest,
-					shippingType: val.shippingType,
-					carrierName: val.carrierName,
-					Product: val.productDetails[0].name,
-					namaPembeli: val.dataUser.consumerType != 'MEMBER' ? dataMember.fullname : val.dataUser.fullname,
-					notelpPembeli: val.dataUser.consumerType != 'MEMBER' ? dataMember.devicenumber : val.dataUser.devicenumber,
-					memberRefCode: val.dataUser.customerRegRefcode,
-					namaReferal: val.dataUser.consumerType != 'MEMBER' ? dataMember.fullname : '',
-					telpReferal: val.dataUser.consumerType != 'MEMBER' ? dataMember.devicenumber : '',
-				}
-				kumpuldata.push(emit)
-			})
-
 			let workbook = new excel.Workbook();
-			let worksheet = workbook.addWorksheet("Data Order");
-			worksheet.columns = [
-				{ header: "Invoice", key: "orderNumber", width: 20 },
-				{ header: "Tanggal Order", key: "createdAt", width: 20 },
-				{ header: "Kurir", key: "carrierName", width: 20 },
-				{ header: "No Resi", key: "shippingReceiptNumber", width: 20 },
-				{ header: "Nama Pembeli", key: "namaPembeli", width: 20 },
-				{ header: "Telepon Pembeli", key: "notelpPembeli", width: 20 },
-				{ header: "Member Ref Code", key: "memberRefCode", width: 20 },
-				{ header: "Status", key: "orderStatusLatest", width: 20 },
-				{ header: "COD / NO COD", key: "shippingType", width: 20 },
-				{ header: "Nama Referal", key: "namaReferal", width: 20 },
-				{ header: "Kontak Referal", key: "telpReferal", width: 20 },
-			];
-			const figureColumns = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-			figureColumns.forEach((i) => {
-				worksheet.getColumn(i).alignment = { horizontal: "left" };
-			});
-			worksheet.addRows(kumpuldata);
+			for (let index = 1; index <= totalPages; index++) {
+				const { data: response } = await request({
+					url: `${KMART_BASE_URL}admin/orders/get-data-harian?dateRange=${startdate},${enddate}&page=${index}&limit=${limit}`,
+					method: 'GET',
+					// params: { dateRange: `${startdate},${enddate}` },
+					headers: {
+						// 'Authorization': `Bearer ${TOKEN}`,
+						'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+					},
+				})
+	
+				let kumpuldata = []
+				const { records } = response.data
+				records.map(val => {
+					let emit = {
+						orderNumber: val.orderNumber,
+						createdAt: convertDateTime2(val.createdAt),
+						shippingReceiptNumber: val.shippingReceiptNumber,
+						orderStatusLatest: val.orderStatusLatest,
+						shippingType: val.shippingType,
+						carrierName: val.carrierName,
+						Product: val.productDetails[0].name,
+						namaPembeli: val.dataUser.consumerType != 'MEMBER' ? val.dataMember.fullname : val.dataUser.fullname,
+						notelpPembeli: val.dataUser.consumerType != 'MEMBER' ? val.dataMember.devicenumber : val.dataUser.devicenumber,
+						memberRefCode: val.dataUser.customerRegRefcode,
+						namaReferal: val.dataUser.consumerType != 'MEMBER' ? val.dataMember.fullname : '',
+						telpReferal: val.dataUser.consumerType != 'MEMBER' ? val.dataMember.devicenumber : '',
+					}
+					kumpuldata.push(emit)
+				})
+	
+				let worksheet = workbook.addWorksheet(`Data Order${index > 1 ? ` - Page ${index}` : '' }`);
+				worksheet.columns = [
+					{ header: "Invoice", key: "orderNumber", width: 20 },
+					{ header: "Tanggal Order", key: "createdAt", width: 20 },
+					{ header: "Kurir", key: "carrierName", width: 20 },
+					{ header: "No Resi", key: "shippingReceiptNumber", width: 20 },
+					{ header: "Nama Pembeli", key: "namaPembeli", width: 20 },
+					{ header: "Telepon Pembeli", key: "notelpPembeli", width: 20 },
+					{ header: "Member Ref Code", key: "memberRefCode", width: 20 },
+					{ header: "Status", key: "orderStatusLatest", width: 20 },
+					{ header: "COD / NO COD", key: "shippingType", width: 20 },
+					{ header: "Nama Referal", key: "namaReferal", width: 20 },
+					{ header: "Kontak Referal", key: "telpReferal", width: 20 },
+				];
+				const figureColumns = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+				figureColumns.forEach((i) => {
+					worksheet.getColumn(i).alignment = { horizontal: "left" };
+				});
+				worksheet.addRows(kumpuldata);
+				worksheet.state = 'visible';
+			}
 
 			res.setHeader(
 				"Content-Type",
