@@ -3,8 +3,12 @@ const { request } = require('../utils/request')
 const excel = require("exceljs");
 const _ = require("lodash");
 const { DateTime } = require('luxon')
+const dotenv = require('dotenv');
+dotenv.config();
 const KMART_BASE_URL = 'https://kld-api-stg.k-mart.co.id/v1/'
 const KNET_BASE_URL = 'https://api.k-link.dev/api/'
+const TOKEN = process.env.TOKEN
+const XINTERSERVICECALL = process.env.XINTERSERVICECALL
 
 async function loginKnet() {
 	const { data: login } = await request({
@@ -33,7 +37,8 @@ function hitManualKMart () {
 					is_mydoc: '0'
 				},
 				headers: {
-					'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjUyNjQiLCJ1c2VyVHlwZSI6Ik1FTUJFUiIsImlhdCI6MTY1NTI4MjAyNCwiZXhwIjoxNjg2ODE4MDI0fQ.Nhuug2zsGa5kAFA4XbzGbX4JT3LJj9eXCTiGI-1LPoo',
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
 				},
 			})
 			return OK(res, response.data);
@@ -45,17 +50,22 @@ function hitManualKMart () {
 
 function getdataHarian () {
   return async (req, res, next) => {
-		let { startdate, enddate } = req.query
+		let { page, limit, startdate, enddate } = req.query
     try {
 			const { data: response } = await request({
-				url: `${KMART_BASE_URL}admin/orders/get-data-harian`,
+				url: `${KMART_BASE_URL}admin/orders/get-data-harian?dateRange=${startdate},${enddate}&page=${page}&limit=${limit}`,
 				method: 'GET',
-				params: { dateRange: `${startdate},${enddate}` },
+				// params: { 
+				// 	dateRange: `${startdate},${enddate}`,
+				// 	page: page,
+				// 	limit: limit,
+				// },
 				headers: {
-					'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjUyNjQiLCJ1c2VyVHlwZSI6Ik1FTUJFUiIsImlhdCI6MTY1NTI4MjAyNCwiZXhwIjoxNjg2ODE4MDI0fQ.Nhuug2zsGa5kAFA4XbzGbX4JT3LJj9eXCTiGI-1LPoo',
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
 				},
 			})
-			return OK(res, { data: response.data.records, count: response.data.count });
+			return OK(res, { data: response.data.records, pageSummary: response.data.pageSummary });
     } catch (err) {
 			return NOT_FOUND(res, err.message)
     }
@@ -64,23 +74,93 @@ function getdataHarian () {
 
 function getdataOrder () {
   return async (req, res, next) => {
-		let { inv } = req.query
+		let { page, limit, inv } = req.query
     try {
-			let data = _.split(inv, 'INV-').reverse()
-			let drop = _.dropRight(data)
-			let hasil = drop.map(val => {
-				let kumpul = `INV-${val}`
-				return kumpul
-			})
+			let data, drop, hasil, url
+			if(inv){
+				data = _.split(inv, 'INV-').reverse()
+				drop = _.dropRight(data)
+				hasil = drop.map(val => {
+					let kumpul = `INV-${val}`
+					return kumpul
+				})
+				url = `&inv=${_.join(hasil, ',')}`
+			}
 			const { data: response } = await request({
-				url: `${KMART_BASE_URL}admin/orders/get-data-harian`,
+				url: `${KMART_BASE_URL}admin/orders/get-data-harian?page=${page}&limit=${limit}${inv ? `${url}` : ''}`,
 				method: 'GET',
-				params: { inv: `${_.join(hasil, ',')}` },
+				// params: { inv: `${_.join(hasil, ',')}` },
 				headers: {
-					'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjUyNjQiLCJ1c2VyVHlwZSI6Ik1FTUJFUiIsImlhdCI6MTY1NTI4MjAyNCwiZXhwIjoxNjg2ODE4MDI0fQ.Nhuug2zsGa5kAFA4XbzGbX4JT3LJj9eXCTiGI-1LPoo',
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+				},
+			})
+			return OK(res, { data: response.data.records, pageSummary: response.data.pageSummary });
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function getProductOrderSummary () {
+  return async (req, res, next) => {
+		let { productName, startdate, enddate, payment, shippingType } = req.query
+    try {
+			var url = ''
+			if(startdate && enddate){ url += `dateRange=${startdate},${enddate}&` }
+			if(productName){ url += `productName=${productName}&` }
+			if(payment){ url += `payment=${payment}&` }
+			if(shippingType){ url += `shippingType=${shippingType}&`}
+			const { data: response } = await request({
+				url: `${KMART_BASE_URL}admin/orders/get-summary-order?${url}`,
+				method: 'GET',
+				headers: {
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
 				},
 			})
 			return OK(res, response.data);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function getProductVariant () {
+  return async (req, res, next) => {
+		let { inv, productPackage, kondisi } = req.query
+    try {
+			let url = `${KMART_BASE_URL}admin/orders/get-varian-product`
+			if(kondisi == 1){
+				const { data: response } = await request({
+					url: `${url}`,
+					method: 'GET',
+					params: { productPackage: `${productPackage}` },
+					headers: {
+						// 'Authorization': `Bearer ${TOKEN}`,
+						'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+					},
+				})
+				return OK(res, response.data);
+			}
+			if(kondisi == 2){
+				let data = _.split(inv, 'INV-').reverse()
+				let drop = _.dropRight(data)
+				let hasil = drop.map(val => {
+					let kumpul = `INV-${val}`
+					return kumpul
+				})
+				const { data: response } = await request({
+					url: `${url}`,
+					method: 'GET',
+					params: { inv: `${_.join(hasil, ',')}` },
+					headers: {
+						// 'Authorization': `Bearer ${TOKEN}`,
+						'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+					},
+				})
+				return OK(res, response.data);
+			}
     } catch (err) {
 			return NOT_FOUND(res, err.message)
     }
@@ -96,7 +176,8 @@ function exportExcel () {
 				method: 'GET',
 				params: { dateRange: `${startdate},${enddate}` },
 				headers: {
-					'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjUyNjQiLCJ1c2VyVHlwZSI6Ik1FTUJFUiIsImlhdCI6MTY1NTI4MjAyNCwiZXhwIjoxNjg2ODE4MDI0fQ.Nhuug2zsGa5kAFA4XbzGbX4JT3LJj9eXCTiGI-1LPoo',
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
 				},
 			})
 
@@ -171,7 +252,8 @@ function getdataNonCod () {
 				method: 'GET',
 				params: { orderID: `${_.join(hasil, ',')}` },
 				headers: {
-					'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjUyNjQiLCJ1c2VyVHlwZSI6Ik1FTUJFUiIsImlhdCI6MTY1NTI4MjAyNCwiZXhwIjoxNjg2ODE4MDI0fQ.Nhuug2zsGa5kAFA4XbzGbX4JT3LJj9eXCTiGI-1LPoo',
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
 				},
 			})
 			return OK(res, response.data);
@@ -189,7 +271,8 @@ function hitUpdateStatus () {
 				url: `${KMART_BASE_URL}admin/orders/update-status-noncod?orderId=${idOrder}&status=${status}&remarks=${remarks}`,
 				method: 'GET',
 				headers: {
-					'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjUyNjQiLCJ1c2VyVHlwZSI6Ik1FTUJFUiIsImlhdCI6MTY1NTI4MjAyNCwiZXhwIjoxNjg2ODE4MDI0fQ.Nhuug2zsGa5kAFA4XbzGbX4JT3LJj9eXCTiGI-1LPoo',
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
 				},
 			})
 			return OK(res, response.data);
@@ -848,6 +931,8 @@ module.exports = {
   hitManualKMart,
   getdataHarian,
   getdataOrder,
+  getProductOrderSummary,
+  getProductVariant,
   exportExcel,
   getdataNonCod,
   hitUpdateStatus,

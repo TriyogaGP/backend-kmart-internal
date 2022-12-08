@@ -3,6 +3,8 @@ const {
   hitManualKMart,
   getdataHarian,
   getdataOrder,
+  getProductOrderSummary,
+  getProductVariant,
   exportExcel,
   getdataNonCod,
   hitUpdateStatus,
@@ -16,6 +18,8 @@ module.exports = models => {
   route.route('/hitManualKMart').post(verifyToken, hitManualKMart())
   route.route('/getdataHarian').get(verifyToken, getdataHarian())
   route.route('/getdataOrder').get(verifyToken, getdataOrder())
+  route.route('/getdataProductOrderSummary').get(verifyToken, getProductOrderSummary())
+  route.route('/getdataVariantProduct').get(verifyToken, getProductVariant())
   route.route('/getdataNonCod').get(verifyToken, getdataNonCod())
   route.route('/hitUpdateStatus').get(verifyToken, hitUpdateStatus())
   route.route('/exportExcel').get(exportExcel())
