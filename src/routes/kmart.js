@@ -11,7 +11,13 @@ const {
   getdataKmart,
   testing,
 } = require('../controllers/kmart.controller')
+const {
+  updateUserAcquisition,
+  updateUserInstall,
+  getUserGoogle
+} = require('../controllers/google-loader.controller')
 const { verifyToken } = require('../middleware/VerifyToken');
+const { uploadBerkas } = require('../middleware/uploadBerkas');
 
 module.exports = models => {
   const route = Router();
@@ -24,6 +30,9 @@ module.exports = models => {
   route.route('/hitUpdateStatus').get(verifyToken, hitUpdateStatus())
   route.route('/exportExcel').get(exportExcel())
   route.route('/getdataKmart').get(verifyToken, getdataKmart())
+  route.route('/getUserGoogle').get(verifyToken, getUserGoogle(models))
+  route.route('/google/loader/UserAcquisition').post(uploadBerkas, updateUserAcquisition(models))
+  route.route('/google/loader/UserInstall').post(uploadBerkas, updateUserInstall(models))
   route.route('/testing').get(testing())
   
   return route;

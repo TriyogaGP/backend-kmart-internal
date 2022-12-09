@@ -5,25 +5,19 @@ const fs = require('fs');
 const storage = multer.diskStorage({
     destination: (req, file, callBack) => {
         const { body } = req;
-        const { jenis, bagian, nama, nama_file, nama_folder } = body
-        if(bagian == 'barang_lelang') {
-            const path_dir = bagian == 'barang_lelang' ? path.join(__dirname, '../public/pdf/kelengkapan-barang-lelang/' + nama_folder) : '';
-            if (!fs.existsSync(path_dir)) {
-                fs.mkdirSync(path_dir, 0777);
-            }else{
-                fs.readdirSync(path_dir, { withFileTypes: true });
-            }
-            callBack(null, path_dir)
+        const { bagian } = body
+        const path_dir = path.join(__dirname, '../public/excel/');
+        if (!fs.existsSync(path_dir)) {
+            fs.mkdirSync(path_dir, 0777);
         }else{
-            const location = (jenis === 'excel') ? './src/public/excel/' : './src/public/pdf/'
-            callBack(null, location)     // './public/images/' directory name where save the file
+            fs.readdirSync(path_dir, { withFileTypes: true });
         }
-        // console.log(path_dir);
-        // process.exit()
+        callBack(null, path_dir)
     },
     filename: (req, file, callBack) => {
         const { body } = req;
-        const { jenis, bagian, nama, nama_file, nama_folder } = body
+        const { bagian } = body
+        let nama_file = bagian == 'install' ? 'user_install' : 'user_acquisition'
         callBack(null, nama_file + path.extname(file.originalname))
     }
 })
