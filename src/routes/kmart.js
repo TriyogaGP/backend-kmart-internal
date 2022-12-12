@@ -9,6 +9,7 @@ const {
   getdataNonCod,
   hitUpdateStatus,
   getdataKmart,
+  getDashboardTransaksi,
   testing,
 } = require('../controllers/kmart.controller')
 const {
@@ -21,6 +22,7 @@ const { uploadBerkas } = require('../middleware/uploadBerkas');
 
 module.exports = models => {
   const route = Router();
+  route.route('/getDashboardTransaksi').get(getDashboardTransaksi(models))
   route.route('/hitManualKMart').post(verifyToken, hitManualKMart())
   route.route('/getdataHarian').get(verifyToken, getdataHarian())
   route.route('/getdataOrder').get(verifyToken, getdataOrder())
@@ -33,7 +35,7 @@ module.exports = models => {
   route.route('/getUserGoogle').get(verifyToken, getUserGoogle(models))
   route.route('/google/loader/UserAcquisition').post(uploadBerkas, updateUserAcquisition(models))
   route.route('/google/loader/UserInstall').post(uploadBerkas, updateUserInstall(models))
-  route.route('/testing').get(testing())
+  route.route('/testing').get(testing(models))
   
   return route;
 }

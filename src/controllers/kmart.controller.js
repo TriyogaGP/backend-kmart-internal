@@ -1,6 +1,6 @@
 const { response, OK, NOT_FOUND, NO_CONTENT } = require('../utils/response.utils');
 const { request } = require('../utils/request')
-const { convertDateTime2 } = require('../utils/helper.utils')
+const { convertDateTime2, bulanValues } = require('../utils/helper.utils')
 const excel = require("exceljs");
 const _ = require("lodash");
 const { DateTime } = require('luxon')
@@ -208,17 +208,18 @@ function exportExcel () {
 				worksheet.columns = [
 					{ header: "Invoice", key: "orderNumber", width: 20 },
 					{ header: "Tanggal Order", key: "createdAt", width: 20 },
-					{ header: "Kurir", key: "carrierName", width: 20 },
+					{ header: "Product", key: "Product", width: 50 },
+					{ header: "Kurir", key: "carrierName", width: 10 },
 					{ header: "No Resi", key: "shippingReceiptNumber", width: 20 },
 					{ header: "Nama Pembeli", key: "namaPembeli", width: 20 },
 					{ header: "Telepon Pembeli", key: "notelpPembeli", width: 20 },
 					{ header: "Member Ref Code", key: "memberRefCode", width: 20 },
 					{ header: "Status", key: "orderStatusLatest", width: 20 },
-					{ header: "COD / NO COD", key: "shippingType", width: 20 },
+					{ header: "COD / NON COD", key: "shippingType", width: 20 },
 					{ header: "Nama Referal", key: "namaReferal", width: 20 },
 					{ header: "Kontak Referal", key: "telpReferal", width: 20 },
 				];
-				const figureColumns = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+				const figureColumns = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 				figureColumns.forEach((i) => {
 					worksheet.getColumn(i).alignment = { horizontal: "left" };
 				});
@@ -616,315 +617,105 @@ function getdataKmart () {
   }  
 }
 
-function testing () {
+function getDashboardTransaksi (models) {
+  return async (req, res, next) => {
+    try {
+			const data = await models.Transaksi.findAll({
+				order: [
+					['idTransaksi', 'ASC'],
+				]
+			});
+
+			return OK(res, data);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function testing (models) {
   return async (req, res, next) => {
 		// let { startdate, enddate, kode, kategoriProduct } = req.query
     try {
-			// const login = await loginKnet()
-			// const getBody = {
-			// 	dateFrom: startdate ? startdate : DateTime.local().plus({ day: -7 }).toISODate(),
-			// 	dateTo: enddate ? enddate : DateTime.local().plus({ day: -1 }).toISODate()
-			// }
-			// const { data: response } = await request({
-			// 	url: `${KNET_BASE_URL}v.1/getKMartData`,
-			// 	method: 'POST',
-			// 	data: getBody,
-			// 	headers: {
-			// 		'Content-Type': 'application/json',
-			// 		'Authorization': `Bearer ${login.token}`,
-			// 	},
-			// })
+			let tahun = new Date().getFullYear()
+			// let tahun = '2023'
+			let hasil = []
+			const login = await loginKnet()
+			for(let i=1; i <= 12; i++) {
+				let jumlah_hari = new Date(tahun, i, 0).getDate()
+				let bulan = i >= 10 ? i : "0"+i
+				const getBody = {
+					dateFrom: tahun+"-"+bulan+"-01",
+					dateTo: tahun+"-"+bulan+"-"+jumlah_hari
+				}
+				const { data: response } = await request({
+					url: `${KNET_BASE_URL}v.1/getKMartData`,
+					method: 'POST',
+					data: getBody,
+					headers: {
+						'Content-Type': 'application/json',
+						'Authorization': `Bearer ${login.token}`,
+					},
+				})
+				if(response){
+					console.log("bulan "+bulanValues(tahun+"-"+i+"-01"));
+					let groupbyData = _.groupBy(response.resTransDetailPerDate, val => val.datetrans)
+	
+					let kumpul = await Promise.all(Object.entries(groupbyData).map(val => {
+						let key = val[0]
+						let data = val[1]
+						let trx = []
+						data.map(v => {
+							trx.push({
+								transaksi: {
+									period: v.bonusmonth,
+									date: v.datetrans,
+									order_no: v.orderno,
+									reff_no: v.token,
+								},
+								distributor: {
+									code: v.id_memb,
+									name: v.nmmember,
+								},
+								total: {
+									dp: v.totPayDP,
+									bv: v.total_bv,
+								},
+							})
+						})
+						return { key, trx }
+					})) 
+	
+					let meta = {
+						dp: 0,
+						bv: 0,
+					}
+					let dataTransaksi = []
+					kumpul.map(async vall => {
+						dataTransaksi.push(...vall.trx)
+						await Promise.all(vall.trx.map(val => {
+							meta.dp += val.total.dp
+							meta.bv += val.total.bv
+						}))
+					})
+	
+					hasil.push({
+						bulan: bulanValues(tahun+"-"+i+"-01"),
+						dataJumlah: meta
+					})
+				}
+			}
+			hasil.map(async val => {
+				let kirimdata = { 
+					tahun: tahun,
+					bulan: val.bulan,
+					dp: val.dataJumlah.dp,
+					bv: val.dataJumlah.bv
+				 }
+				await models.Transaksi.update(kirimdata, {where: { bulan: val.bulan }})
+			})
 
-			// if(kode === 'Transaksi Detail' && response.status === 'success' && response.resTransDetailPerDate.length > 0){
-			// 	let groupbyData = _.groupBy(response.resTransDetailPerDate, val => val.datetrans)
-
-			// 	let kumpul = await Promise.all(Object.entries(groupbyData).map(val => {
-			// 		let key = val[0]
-			// 		let data = val[1]
-			// 		let trx = []
-			// 		data.map(v => {
-			// 			trx.push({
-			// 				transaksi: {
-			// 					period: v.bonusmonth,
-			// 					date: v.datetrans,
-			// 					order_no: v.orderno,
-			// 					reff_no: v.token,
-			// 				},
-			// 				distributor: {
-			// 					code: v.id_memb,
-			// 					name: v.nmmember,
-			// 				},
-			// 				total: {
-			// 					dp: v.totPayDP,
-			// 					bv: v.total_bv,
-			// 				},
-			// 			})
-			// 		})
-			// 		return { key, trx }
-			// 	})) 
-
-			// 	let meta = {
-			// 		dp: 0,
-			// 		bv: 0,
-			// 	}
-			// 	let dataTransaksi = []
-			// 	kumpul.map(async vall => {
-			// 		dataTransaksi.push(...vall.trx)
-			// 		await Promise.all(vall.trx.map(val => {
-			// 			meta.dp += val.total.dp
-			// 			meta.bv += val.total.bv
-			// 		}))
-			// 	})
-
-			// 	return OK(res, { dataTransaksi: _.orderBy(dataTransaksi, 'transaksi.date', 'asc'), dataJumlah: meta });
-			// }
-
-			// if(kode === 'Transaksi Summary Detail' && response.status === 'success' && response.resSummByDate.length > 0){
-			// 	let groupbyData = _.groupBy(response.resSummByDate, val => val.datetrans)
-
-			// 	let kumpul = await Promise.all(Object.entries(groupbyData).map(val => {
-			// 		let key = val[0]
-			// 		let data = val[1]
-			// 		let trx = []
-			// 		data.map(v => {
-			// 			trx.push({
-			// 				transaksi: {
-			// 					date: v.datetrans,
-			// 					records: v.tot_rec,
-			// 				},
-			// 				total: {
-			// 					dp: v.totDP,
-			// 					bv: v.totBV,
-			// 				},
-			// 			})
-			// 		})
-			// 		return { key, trx }
-			// 	})) 
-
-			// 	let meta = {
-			// 		records: 0,
-			// 		dp: 0,
-			// 		bv: 0,
-			// 	}
-			// 	let dataTransaksi = []
-			// 	kumpul.map(async vall => {
-			// 		dataTransaksi.push(...vall.trx)
-			// 		await Promise.all(vall.trx.map(val => {
-			// 			meta.records += val.transaksi.records
-			// 			meta.dp += val.total.dp
-			// 			meta.bv += val.total.bv
-			// 		}))
-			// 	})
-
-			// 	return OK(res, { dataTransaksi: _.orderBy(dataTransaksi, 'transaksi.date', 'asc'), dataJumlah: meta });
-			// }
-
-			// if(kode === 'Customer By Area' && response.status === 'success' && response.resCustomersByArea.length > 0){
-			// 	return OK(res, response.resCustomersByArea);
-			// }
-
-			// if(kode === 'Customer Sales By Area' && response.status === 'success' && response.resCustomerSalesByArea.length > 0){
-			// 	let meta = {
-			// 		orders: 0,
-			// 		dp: 0,
-			// 		cp: 0,
-			// 		bv: 0,
-			// 	}
-			// 	response.resCustomerSalesByArea.map(val => {
-			// 		meta.orders += val.order_count
-			// 		meta.dp += val.totDP
-			// 		meta.cp += val.totCP
-			// 		meta.bv += val.totBV
-			// 	})
-
-			// 	return OK(res, { dataCustomerSales: response.resCustomerSalesByArea, dataJumlah: meta });
-			// }
-
-			// if(kode === 'Transaksi Detail By Product' && response.status === 'success' && response.resTransByProductPerDate.length > 0){
-			// 	let groupbyData = _.groupBy(response.resTransByProductPerDate, val => val.datetrans)
-
-			// 	let kumpul = await Promise.all(Object.entries(groupbyData).map(val => {
-			// 		let key = val[0]
-			// 		let data = val[1]
-			// 		let trx = []
-			// 		data.map(v => {
-			// 			trx.push({
-			// 				transaksi: {
-			// 					period: v.bonusmonth,
-			// 					date: v.datetrans,
-			// 				},
-			// 				product: {
-			// 					code: v.prdcd,
-			// 					desc: v.prdnm,
-			// 					category: v.cat_desc,
-			// 				},
-			// 				qty: v.qty,
-			// 				price: {
-			// 					dp: v.dpr,
-			// 					cp: v.cpr,
-			// 					bv: v.bvr,
-			// 				},
-			// 				sub_total: {
-			// 					dp: v.total_dp,
-			// 					cp: v.total_cp,
-			// 					bv: v.total_bv,
-			// 				},
-			// 			})
-			// 		})
-			// 		return { key, trx }
-			// 	})) 
-
-			// 	let meta = {
-			// 		price: {
-			// 			dp: 0,
-			// 			cp: 0,
-			// 			bv: 0,
-			// 		},
-			// 		subtotal: {
-			// 			dp: 0,
-			// 			cp: 0,
-			// 			bv: 0,
-			// 		},
-			// 		qty: 0,
-			// 	}
-			// 	let dataTransaksiProduct = []
-			// 	await Promise.all(kumpul.map(async vall => {
-			// 		if(kategoriProduct && kategoriProduct !== "") {
-			// 			let subdataTransaksiProduct = []
-			// 			await Promise.all(vall.trx.map(val => {
-			// 				if(val.product.category === kategoriProduct) {
-			// 					subdataTransaksiProduct.push(val)
-
-			// 					meta.price.dp += val.price.dp
-			// 					meta.price.cp += val.price.cp
-			// 					meta.price.bv += val.price.bv
-
-			// 					meta.subtotal.dp += val.sub_total.dp
-			// 					meta.subtotal.cp += val.sub_total.cp
-			// 					meta.subtotal.bv += val.sub_total.bv
-								
-			// 					meta.qty += val.qty
-			// 				}
-			// 			}))
-			// 			dataTransaksiProduct.push(...subdataTransaksiProduct)
-			// 		}else{
-			// 			dataTransaksiProduct.push(...vall.trx)
-			// 			await Promise.all(vall.trx.map(val => {
-			// 				meta.price.dp += val.price.dp
-			// 				meta.price.cp += val.price.cp
-			// 				meta.price.bv += val.price.bv
-
-			// 				meta.subtotal.dp += val.sub_total.dp
-			// 				meta.subtotal.cp += val.sub_total.cp
-			// 				meta.subtotal.bv += val.sub_total.bv
-							
-			// 				meta.qty += val.qty
-			// 			}))
-			// 		}
-			// 	}))
-
-			// 	return OK(res, { dataTransaksiProduct: _.orderBy(dataTransaksiProduct, 'transaksi.date', 'asc'), dataJumlah: meta });
-			// }
-
-			// if(kode === 'Transaksi Detail Customer' && response.status === 'success' && response.resTransDetailPerDateCust.length > 0){
-			// 	let groupbyData = _.groupBy(response.resTransDetailPerDateCust, val => val.datetrans)
-
-			// 	let kumpul = await Promise.all(Object.entries(groupbyData).map(val => {
-			// 		let key = val[0]
-			// 		let data = val[1]
-			// 		let trx = []
-			// 		data.map(v => {
-			// 			trx.push({
-			// 				transaksi: {
-			// 					period: v.bonusmonth,
-			// 					date: v.datetrans,
-			// 					order_no: v.orderno,
-			// 					reff_no: v.token,
-			// 				},
-			// 				distributor: {
-			// 					code: v.id_memb,
-			// 					name: v.nmmember,
-			// 				},
-			// 				total: {
-			// 					dp: v.totPayDP,
-			// 					bv: v.total_bv,
-			// 				},
-			// 			})
-			// 		})
-			// 		return { key, trx }
-			// 	})) 
-
-			// 	let meta = {
-			// 		dp: 0,
-			// 		bv: 0,
-			// 	}
-			// 	let dataTransaksi = []
-			// 	kumpul.map(async vall => {
-			// 		dataTransaksi.push(...vall.trx)
-			// 		await Promise.all(vall.trx.map(val => {
-			// 			meta.dp += val.total.dp
-			// 			meta.bv += val.total.bv
-			// 		}))
-			// 	})
-
-			// 	return OK(res, { dataTransaksi: _.orderBy(dataTransaksi, 'transaksi.date', 'asc'), dataJumlah: meta });
-			// }
-
-			// if(kode === 'Transaksi Detail By Product Summary' && response.status === 'success' && response.resTransByProductSumm.length > 0){
-			// 	let cleanData = response.resTransByProductSumm.filter(v => v.prdcd !== null)
-
-			// 	let kumpul = await Promise.all(cleanData.map(val => {
-			// 		let trx = {
-			// 			product: {
-			// 				code: val.prdcd,
-			// 				desc: val.prdnm,
-			// 				category_id: val.cat_id,
-			// 				category_name: val.cat_desc,
-			// 			},
-			// 			qty: val.qty,
-			// 			price: {
-			// 				dp: val.dpr,
-			// 				cp: val.cpr,
-			// 				bv: val.bvr,
-			// 			},
-			// 			sub_total: {
-			// 				dp: val.total_dp,
-			// 				cp: val.total_cp,
-			// 				bv: val.total_bv,
-			// 			},
-			// 		}
-			// 		return trx
-			// 	}))
-
-			// 	let meta = {
-			// 		price: {
-			// 			dp: 0,
-			// 			cp: 0,
-			// 			bv: 0,
-			// 		},
-			// 		subtotal: {
-			// 			dp: 0,
-			// 			cp: 0,
-			// 			bv: 0,
-			// 		},
-			// 		qty: 0,
-			// 	}
-			// 	kumpul.map(async val => {
-			// 		meta.price.dp += val.price.dp
-			// 		meta.price.cp += val.price.cp
-			// 		meta.price.bv += val.price.bv
-
-			// 		meta.subtotal.dp += val.sub_total.dp
-			// 		meta.subtotal.cp += val.sub_total.cp
-			// 		meta.subtotal.bv += val.sub_total.bv
-					
-			// 		meta.qty += val.qty
-			// 	})
-
-			// 	return OK(res, { dataTransaksiProduct: _.orderBy(kumpul, 'product.code', 'asc'), dataJumlah: meta });
-			// }
-			
-			return OK(res, 'Param tidak tersedia!');
+			return OK(res, hasil);
     } catch (err) {
 			return NOT_FOUND(res, err.message)
     }
@@ -941,5 +732,6 @@ module.exports = {
   getdataNonCod,
   hitUpdateStatus,
   getdataKmart,
+  getDashboardTransaksi,
   testing,
 }

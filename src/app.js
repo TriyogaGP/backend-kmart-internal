@@ -178,28 +178,18 @@ try {
   });
 
   //cron job
-    // let now = dayjs();
-    // async function Cron() {
-    //   try {
-    //     const dataEvent = await models.Event.findAll({
-    //       where: { statusAktif: true },
-    //       attributes: { exclude: ['createBy', 'updateBy', 'deleteBy', 'createdAt', 'updatedAt', 'deletedAt'] },
-    //     });
-    //     const kumpulDateTime = []
-    //     dataEvent.map(val => {
-    //       let eventTime = dayjs([val.tanggalEvent, val.waktuEvent].join(" ")).add(1, 'day').toDate();
-    //       if(eventTime < now) {
-    //         kumpulDateTime.push(eventTime)
-    //       }
-    //     })
-    //   } catch (error) {
-    //     console.error(error);
-    //   }
-    // }
-    // let event = cron.schedule('* * * * *', async () => {
-    //   Cron();
-    // })
-    // event.start();
+    const { cronTransaksi } = require('./utils/cron.utils')
+    let transaksi = cron.schedule('0 1 * * *', async () => {
+      console.log('cron', new Date());
+      let response = await cronTransaksi(models)
+      if(response == 'success') {
+        console.log('selesai simpan data');
+      }
+    }, {
+      scheduled: true,
+      timezone: "Asia/Jakarta"
+    });
+    transaksi.start();
 
   const PORT = process.env.PORT || 3534;
   server.listen(PORT, () => {
@@ -210,5 +200,4 @@ try {
 }
 
 // set port, listen for requests
-
 module.exports = app;
