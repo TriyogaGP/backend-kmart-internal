@@ -10,6 +10,7 @@ const {
   hitUpdateStatus,
   getdataKmart,
   getDashboardTransaksi,
+  reloadDashboardTransaksi,
   testing,
 } = require('../controllers/kmart.controller')
 const {
@@ -35,6 +36,7 @@ module.exports = models => {
   route.route('/getUserGoogle').get(verifyToken, getUserGoogle(models))
   route.route('/google/loader/UserAcquisition').post(uploadBerkas, updateUserAcquisition(models))
   route.route('/google/loader/UserInstall').post(uploadBerkas, updateUserInstall(models))
+  route.route('/reloadDashboardTransaksi').get(reloadDashboardTransaksi(models))
   route.route('/testing').get(testing(models))
   
   return route;

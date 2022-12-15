@@ -20,7 +20,7 @@ function getUserGoogle (models) {
         const data = await models.UserInstall.findAll({
           where,
           order: [
-            ['date', 'ASC'],
+            ['date', 'DESC'],
           ]
         });
   
@@ -34,7 +34,7 @@ function getUserGoogle (models) {
         const data = await models.UserAcquisition.findAll({
           where,
           order: [
-            ['date', 'ASC'],
+            ['date', 'DESC'],
           ]
         });
   

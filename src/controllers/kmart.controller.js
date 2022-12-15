@@ -633,6 +633,93 @@ function getDashboardTransaksi (models) {
   }  
 }
 
+function reloadDashboardTransaksi (models) {
+  return async (req, res, next) => {
+    try {
+			let tahun = new Date().getFullYear()
+			let hasil = []
+			const login = await loginKnet()
+			for(let i=1; i <= 12; i++) {
+				let jumlah_hari = new Date(tahun, i, 0).getDate()
+				let bulan = i >= 10 ? i : "0"+i
+				const getBody = {
+					dateFrom: tahun+"-"+bulan+"-01",
+					dateTo: tahun+"-"+bulan+"-"+jumlah_hari
+				}
+				const { data: response } = await request({
+					url: `${KNET_BASE_URL}v.1/getKMartData`,
+					method: 'POST',
+					data: getBody,
+					headers: {
+						'Content-Type': 'application/json',
+						'Authorization': `Bearer ${login.token}`,
+					},
+				})
+				if(response){
+					console.log("bulan "+bulanValues(tahun+"-"+i+"-01"));
+					let groupbyData = _.groupBy(response.resTransDetailPerDate, val => val.datetrans)
+	
+					let kumpul = await Promise.all(Object.entries(groupbyData).map(val => {
+						let key = val[0]
+						let data = val[1]
+						let trx = []
+						data.map(v => {
+							trx.push({
+								transaksi: {
+									period: v.bonusmonth,
+									date: v.datetrans,
+									order_no: v.orderno,
+									reff_no: v.token,
+								},
+								distributor: {
+									code: v.id_memb,
+									name: v.nmmember,
+								},
+								total: {
+									dp: v.totPayDP,
+									bv: v.total_bv,
+								},
+							})
+						})
+						return { key, trx }
+					})) 
+	
+					let meta = {
+						dp: 0,
+						bv: 0,
+					}
+					let dataTransaksi = []
+					kumpul.map(async vall => {
+						dataTransaksi.push(...vall.trx)
+						await Promise.all(vall.trx.map(val => {
+							meta.dp += val.total.dp
+							meta.bv += val.total.bv
+						}))
+					})
+	
+					hasil.push({
+						bulan: bulanValues(tahun+"-"+i+"-01"),
+						dataJumlah: meta
+					})
+				}
+			}
+			hasil.map(async val => {
+				let kirimdata = { 
+					tahun: tahun,
+					bulan: val.bulan,
+					dp: val.dataJumlah.dp,
+					bv: val.dataJumlah.bv
+				 }
+				await models.Transaksi.update(kirimdata, {where: { bulan: val.bulan }})
+			})
+
+			return OK(res, hasil);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
 function testing (models) {
   return async (req, res, next) => {
 		// let { startdate, enddate, kode, kategoriProduct } = req.query
@@ -733,5 +820,6 @@ module.exports = {
   hitUpdateStatus,
   getdataKmart,
   getDashboardTransaksi,
+  reloadDashboardTransaksi,
   testing,
 }
