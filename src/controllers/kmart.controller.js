@@ -11,7 +11,7 @@ const KNET_BASE_URL = 'https://api.k-link.dev/api/'
 const TOKEN = process.env.TOKEN
 const XINTERSERVICECALL = process.env.XINTERSERVICECALL
 
-async function loginKnet() {
+async function loginKnet () {
 	const { data: login } = await request({
 		url: `${KNET_BASE_URL}auth/login`,
 		method: 'POST',
@@ -105,11 +105,11 @@ function getdataOrder () {
 
 function getProductOrderSummary () {
   return async (req, res, next) => {
-		let { productName, startdate, enddate, payment, shippingType } = req.query
+		let { idProductName, startdate, enddate, payment, shippingType } = req.query
     try {
 			var url = ''
 			if(startdate && enddate){ url += `dateRange=${startdate},${enddate}&` }
-			if(productName){ url += `productName=${productName}&` }
+			if(idProductName){ url += `idProductName=${idProductName}&` }
 			if(payment){ url += `payment=${payment}&` }
 			if(shippingType){ url += `shippingType=${shippingType}&`}
 			const { data: response } = await request({
@@ -633,6 +633,61 @@ function getDashboardTransaksi (models) {
   }  
 }
 
+function getDashboardUserActive (models) {
+  return async (req, res, next) => {
+		let { userType, bulan } = req.query
+    try {
+			const data = await models.UserActive.findAll({
+				where: {
+					userType: userType,
+					bulan: bulan
+				},
+				order: [
+					['idUserActive', 'ASC'],
+				]
+			});
+
+			let dataKumpul = []
+			await data.map(val => {
+				let objectBaru = Object.assign(val.dataValues, {
+					dataUser: val.dataValues.dataUser ? JSON.parse([val.dataValues.dataUser]) : []
+				});
+				return dataKumpul.push(objectBaru)
+			})
+
+			return OK(res, dataKumpul);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function getDashboardProduct (models) {
+  return async (req, res, next) => {
+		let { kategori, is_package, condition, condition_value } = req.query
+    try {
+			let url = '';
+			if(kategori == 'ALL') {
+				url = `data=ALL&isPackage=${is_package}`
+			}
+			if(kategori == 'PART') {
+				url = `data=PART&condition=${condition}&conditionValue${condition_value ? condition_value : null}`
+			}
+			const { data: response } = await request({
+				url: `${KMART_BASE_URL}admin/products/product-es?${url}`,
+				method: 'GET',
+				headers: {
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+				},
+			})
+			return OK(res, response.data);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
 function reloadDashboardTransaksi (models) {
   return async (req, res, next) => {
     try {
@@ -656,7 +711,6 @@ function reloadDashboardTransaksi (models) {
 					},
 				})
 				if(response){
-					console.log("bulan "+bulanValues(tahun+"-"+i+"-01"));
 					let groupbyData = _.groupBy(response.resTransDetailPerDate, val => val.datetrans)
 	
 					let kumpul = await Promise.all(Object.entries(groupbyData).map(val => {
@@ -711,6 +765,54 @@ function reloadDashboardTransaksi (models) {
 					bv: val.dataJumlah.bv
 				 }
 				await models.Transaksi.update(kirimdata, {where: { bulan: val.bulan }})
+			})
+
+			return OK(res, hasil);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function reloadDashboardUserActive (models) {
+  return async (req, res, next) => {
+		let { isMember, detail } = req.query
+    try {
+			let tahun = new Date().getFullYear()
+			let hasil = []
+			for(let i=1; i <= 12; i++) {
+				let jumlah_hari = new Date(tahun, i, 0).getDate()
+				let bulan = i >= 10 ? i : "0"+i
+				const getBody = {
+					dateFrom: tahun+"-"+bulan+"-01",
+					dateTo: tahun+"-"+bulan+"-"+jumlah_hari
+				}
+
+				const { data: response } = await request({
+					url: `${KMART_BASE_URL}admin/orders/get-user-active?dateRange=${getBody.dateFrom},${getBody.dateTo}&isMember=${isMember}&detail=${detail}`,
+					method: 'GET',
+					headers: {
+						// 'Authorization': `Bearer ${TOKEN}`,
+						'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+					},
+				})
+
+				if(response){
+					hasil.push({
+						bulan: bulanValues(tahun+"-"+i+"-01"),
+						data: response.data.records
+					})
+				}
+			}
+
+			hasil.map(async val => {
+				let kirimdata = { 
+					userType: isMember == 0 ? 'Customer' : 'Member',
+					tahun: tahun,
+					bulan: val.bulan,
+					dataUser: JSON.stringify(val.data),
+				 }
+				await models.UserActive.update(kirimdata, {where: { userType: isMember == 0 ? 'Customer' : 'Member', bulan: val.bulan }})
 			})
 
 			return OK(res, hasil);
@@ -820,6 +922,9 @@ module.exports = {
   hitUpdateStatus,
   getdataKmart,
   getDashboardTransaksi,
+  getDashboardUserActive,
+  getDashboardProduct,
   reloadDashboardTransaksi,
+  reloadDashboardUserActive,
   testing,
 }

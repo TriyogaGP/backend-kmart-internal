@@ -3,9 +3,12 @@ const { bulanValues } = require('../utils/helper.utils')
 const _ = require("lodash");
 const dotenv = require('dotenv');
 dotenv.config();
+const KMART_BASE_URL = 'https://kld-api-stg.k-mart.co.id/v1/'
 const KNET_BASE_URL = 'https://api.k-link.dev/api/'
+const TOKEN = process.env.TOKEN
+const XINTERSERVICECALL = process.env.XINTERSERVICECALL
 
-async function loginKnet() {
+async function loginKnet () {
 	const { data: login } = await request({
 		url: `${KNET_BASE_URL}auth/login`,
 		method: 'POST',
@@ -20,7 +23,7 @@ async function loginKnet() {
 	return login
 }
 
-async function cronTransaksi(models) {
+async function cronTransaksi (models) {
 	let tahun = new Date().getFullYear()
 	let hasil = []
 	for(let i=1; i <= 12; i++) {
@@ -102,6 +105,48 @@ async function cronTransaksi(models) {
 	return 'success'
 }
 
+async function cronUserActive (models, isMember, detail) {
+	let tahun = new Date().getFullYear()
+	let hasil = []
+	for(let i=1; i <= 12; i++) {
+		let jumlah_hari = new Date(tahun, i, 0).getDate()
+		let bulan = i >= 10 ? i : "0"+i
+		const getBody = {
+			dateFrom: tahun+"-"+bulan+"-01",
+			dateTo: tahun+"-"+bulan+"-"+jumlah_hari
+		}
+
+		const { data: response } = await request({
+			url: `${KMART_BASE_URL}admin/orders/get-user-active?dateRange=${getBody.dateFrom},${getBody.dateTo}&isMember=${isMember}&detail=${detail}`,
+			method: 'GET',
+			headers: {
+				// 'Authorization': `Bearer ${TOKEN}`,
+				'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+			},
+		})
+
+		if(response){
+			hasil.push({
+				bulan: bulanValues(tahun+"-"+i+"-01"),
+				data: response.data.records
+			})
+		}
+	}
+
+	hasil.map(async val => {
+		let kirimdata = { 
+			userType: isMember == 0 ? 'Customer' : 'Member',
+			tahun: tahun,
+			bulan: val.bulan,
+			dataUser: JSON.stringify(val.data),
+			}
+		await models.UserActive.update(kirimdata, {where: { userType: isMember == 0 ? 'Customer' : 'Member', bulan: val.bulan }})
+	})
+
+	return 'success';
+}
+
 module.exports = {
-	cronTransaksi
+	cronTransaksi,
+	cronUserActive,
 }
