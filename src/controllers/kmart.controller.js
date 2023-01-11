@@ -688,6 +688,39 @@ function getDashboardProduct (models) {
   }  
 }
 
+function getdataConsumer () {
+  return async (req, res, next) => {
+		let {
+			keyword,
+			dateRange,
+			isConsumer,
+			limit,
+			last = 1,
+		} = req.query
+    try {
+			
+			const { data: response } = await request({
+				url: `${KMART_BASE_URL}admin/orders/get-user-consumer`,
+				method: 'GET',
+				params: {
+					keyword: keyword,
+					dateRange: dateRange,
+					isConsumer: isConsumer,
+					limit: limit,
+					last: last,
+				},
+				headers: {
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+				},
+			})
+			return OK(res, response.data);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
 function reloadDashboardTransaksi (models) {
   return async (req, res, next) => {
     try {
@@ -924,6 +957,7 @@ module.exports = {
   getDashboardTransaksi,
   getDashboardUserActive,
   getDashboardProduct,
+  getdataConsumer,
   reloadDashboardTransaksi,
   reloadDashboardUserActive,
   testing,

@@ -12,6 +12,7 @@ const {
   getDashboardTransaksi,
   getDashboardUserActive,
   getDashboardProduct,
+  getdataConsumer,
   reloadDashboardTransaksi,
   reloadDashboardUserActive,
   testing,
@@ -35,6 +36,7 @@ module.exports = models => {
   route.route('/getdataProductOrderSummary').get(verifyToken, getProductOrderSummary())
   route.route('/getdataVariantProduct').get(verifyToken, getProductVariant())
   route.route('/getdataNonCod').get(verifyToken, getdataNonCod())
+  route.route('/getdataConsumer').get(getdataConsumer())
   route.route('/hitUpdateStatus').get(verifyToken, hitUpdateStatus())
   route.route('/exportExcel').get(exportExcel())
   route.route('/getdataKmart').get(verifyToken, getdataKmart())
