@@ -168,80 +168,6 @@ function getProductVariant () {
   }  
 }
 
-function exportExcel () {
-  return async (req, res, next) => {
-		let { startdate, enddate, limit, totalPages } = req.query
-    try {
-			let workbook = new excel.Workbook();
-			for (let index = 1; index <= totalPages; index++) {
-				const { data: response } = await request({
-					url: `${KMART_BASE_URL}admin/orders/get-data-harian?dateRange=${startdate},${enddate}&page=${index}&limit=${limit}`,
-					method: 'GET',
-					// params: { dateRange: `${startdate},${enddate}` },
-					headers: {
-						// 'Authorization': `Bearer ${TOKEN}`,
-						'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
-					},
-				})
-	
-				let kumpuldata = []
-				const { records } = response.data
-				records.map(val => {
-					let emit = {
-						orderNumber: val.orderNumber,
-						createdAt: convertDateTime2(val.createdAt),
-						shippingReceiptNumber: val.shippingReceiptNumber,
-						orderStatusLatest: val.orderStatusLatest,
-						shippingType: val.shippingType,
-						carrierName: val.carrierName,
-						Product: val.productDetails[0].name,
-						namaPembeli: val.dataUser.consumerType != 'MEMBER' ? val.dataMember.fullname : val.dataUser.fullname,
-						notelpPembeli: val.dataUser.consumerType != 'MEMBER' ? val.dataMember.devicenumber : val.dataUser.devicenumber,
-						memberRefCode: val.dataUser.customerRegRefcode,
-						namaReferal: val.dataUser.consumerType != 'MEMBER' ? val.dataMember.fullname : '',
-						telpReferal: val.dataUser.consumerType != 'MEMBER' ? val.dataMember.devicenumber : '',
-					}
-					kumpuldata.push(emit)
-				})
-	
-				let worksheet = workbook.addWorksheet(`Data Order${index > 1 ? ` - Page ${index}` : '' }`);
-				worksheet.columns = [
-					{ header: "Invoice", key: "orderNumber", width: 20 },
-					{ header: "Tanggal Order", key: "createdAt", width: 20 },
-					{ header: "Product", key: "Product", width: 50 },
-					{ header: "Kurir", key: "carrierName", width: 10 },
-					{ header: "No Resi", key: "shippingReceiptNumber", width: 20 },
-					{ header: "Nama Pembeli", key: "namaPembeli", width: 20 },
-					{ header: "Telepon Pembeli", key: "notelpPembeli", width: 20 },
-					{ header: "Member Ref Code", key: "memberRefCode", width: 20 },
-					{ header: "Status", key: "orderStatusLatest", width: 20 },
-					{ header: "COD / NON COD", key: "shippingType", width: 20 },
-					{ header: "Nama Referal", key: "namaReferal", width: 20 },
-					{ header: "Kontak Referal", key: "telpReferal", width: 20 },
-				];
-				const figureColumns = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-				figureColumns.forEach((i) => {
-					worksheet.getColumn(i).alignment = { horizontal: "left" };
-				});
-				worksheet.addRows(kumpuldata);
-				worksheet.state = 'visible';
-			}
-
-			res.setHeader(
-				"Content-Type",
-				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-			);
-		
-			return workbook.xlsx.write(res).then(function () {
-				res.status(200).end();
-			});
-			// return OK(res, kumpuldata)
-    } catch (err) {
-			return NOT_FOUND(res, err.message)
-    }
-  }  
-}
-
 function getdataNonCod () {
   return async (req, res, next) => {
 		let { inv } = req.query
@@ -339,20 +265,71 @@ function getdataKmart () {
 					dp: 0,
 					bv: 0,
 				}
-				let dataTransaksi = []
+				let dataKumpulTransaksi = []
 				kumpul.map(async vall => {
-					dataTransaksi.push(...vall.trx)
+					dataKumpulTransaksi.push(...vall.trx)
 					await Promise.all(vall.trx.map(val => {
 						meta.dp += val.total.dp
 						meta.bv += val.total.bv
 					}))
 				})
 
-				return OK(res, { dataTransaksi: _.orderBy(dataTransaksi, 'transaksi.date', 'asc'), dataJumlah: meta });
+				const PATTERN = /INV-RS/
+				const mappingTransaksi = dataKumpulTransaksi.filter(str => !PATTERN.test(str.orderNumber))
+				
+				let jml = {
+					dp: 0,
+					bv: 0,
+				}
+
+				let dataTransaksi = []
+				await Promise.all(mappingTransaksi.map(async val => {
+					jml.dp += val.total.dp
+					jml.bv += val.total.bv
+					dataTransaksi.push(val)
+				}))
+
+				return OK(res, { dataTransaksi: _.orderBy(dataTransaksi, 'transaksi.date', 'asc'), dataJumlah: jml });
 			}
 
 			if(kode === 'Transaksi Summary Detail' && response.status === 'success' && response.resSummByDate.length > 0){
-				let groupbyData = _.groupBy(response.resSummByDate, val => val.datetrans)
+				// let groupbyData = _.groupBy(response.resSummByDate, val => val.datetrans)
+
+				// let kumpul = await Promise.all(Object.entries(groupbyData).map(val => {
+				// 	let key = val[0]
+				// 	let data = val[1]
+				// 	let trx = []
+				// 	data.map(v => {
+				// 		trx.push({
+				// 			transaksi: {
+				// 				date: v.datetrans,
+				// 				records: v.tot_rec,
+				// 			},
+				// 			total: {
+				// 				dp: v.totDP,
+				// 				bv: v.totBV,
+				// 			},
+				// 		})
+				// 	})
+				// 	return { key, trx }
+				// })) 
+
+				// let meta = {
+				// 	records: 0,
+				// 	dp: 0,
+				// 	bv: 0,
+				// }
+				// let dataTransaksi = []
+				// kumpul.map(async vall => {
+				// 	dataTransaksi.push(...vall.trx)
+				// 	await Promise.all(vall.trx.map(val => {
+				// 		meta.records += val.transaksi.records
+				// 		meta.dp += val.total.dp
+				// 		meta.bv += val.total.bv
+				// 	}))
+				// })
+
+				let groupbyData = _.groupBy(response.resTransDetailPerDate, val => val.datetrans)
 
 				let kumpul = await Promise.all(Object.entries(groupbyData).map(val => {
 					let key = val[0]
@@ -360,13 +337,20 @@ function getdataKmart () {
 					let trx = []
 					data.map(v => {
 						trx.push({
+							orderNumber: v.token,
 							transaksi: {
+								period: v.bonusmonth,
 								date: v.datetrans,
-								records: v.tot_rec,
+								order_no: v.orderno,
+								reff_no: v.token,
+							},
+							distributor: {
+								code: v.id_memb,
+								name: v.nmmember,
 							},
 							total: {
-								dp: v.totDP,
-								bv: v.totBV,
+								dp: v.totPayDP,
+								bv: v.total_bv,
 							},
 						})
 					})
@@ -374,21 +358,60 @@ function getdataKmart () {
 				})) 
 
 				let meta = {
-					records: 0,
 					dp: 0,
 					bv: 0,
 				}
-				let dataTransaksi = []
+				let dataKumpulTransaksi = []
 				kumpul.map(async vall => {
-					dataTransaksi.push(...vall.trx)
+					dataKumpulTransaksi.push(...vall.trx)
 					await Promise.all(vall.trx.map(val => {
-						meta.records += val.transaksi.records
 						meta.dp += val.total.dp
 						meta.bv += val.total.bv
 					}))
 				})
 
-				return OK(res, { dataTransaksi: _.orderBy(dataTransaksi, 'transaksi.date', 'asc'), dataJumlah: meta });
+				const PATTERN = /INV-RS/
+				const mappingTransaksi = dataKumpulTransaksi.filter(str => !PATTERN.test(str.orderNumber))
+
+				let result = _.chain(mappingTransaksi).groupBy("transaksi.date").toPairs().map(val => {
+					return _.zipObject(['date', 'dataTrx'], val)
+				}).value()
+
+				let dataTransaksi = []
+				await Promise.all(result.map(async val => {
+					let jml = {
+						dp: 0,
+						bv: 0,
+					}
+					await Promise.all(val.dataTrx.map(vall => {
+						jml.dp += vall.total.dp
+						jml.bv += vall.total.bv
+					}))
+					dataTransaksi.push({
+						total: {
+							dp: jml.dp,
+							bv: jml.bv
+						},
+						transaksi: {
+							date: val.date,
+							records: val.dataTrx.length
+						}
+					})
+				}))
+
+				let jml = {
+					records: 0,
+					dp: 0,
+					bv: 0,
+				}
+
+				dataTransaksi.map(async val => {
+					jml.records += val.transaksi.records
+					jml.dp += val.total.dp
+					jml.bv += val.total.bv
+				});
+
+				return OK(res, { dataTransaksi: _.orderBy(dataTransaksi, 'transaksi.date', 'asc'), dataJumlah: jml });
 			}
 
 			if(kode === 'Customer By Area' && response.status === 'success' && response.resCustomersByArea.length > 0){
@@ -619,8 +642,10 @@ function getdataKmart () {
 
 function getDashboardTransaksi (models) {
   return async (req, res, next) => {
+		let { tahun } = req.query
     try {
 			const data = await models.Transaksi.findAll({
+				where: { tahun: tahun },
 				order: [
 					['idTransaksi', 'ASC'],
 				]
@@ -721,10 +746,165 @@ function getdataConsumer () {
   }  
 }
 
-function reloadDashboardTransaksi (models) {
+function getTopicUser (models) {
+  return async (req, res, next) => {
+		let { is_consumer, startdate, enddate, is_null } = req.query
+    try {
+			const { data: response } = await request({
+				url: `${KMART_BASE_URL}admin/orders/get-topic-by?dateRange=${startdate},${enddate}&isConsumer=${is_consumer}&isNull=${is_null}`,
+				method: 'GET',
+				headers: {
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+				},
+			})
+			return OK(res, response.data);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function getOrderUser (models) {
+  return async (req, res, next) => {
+		let { id_user, is_consumer } = req.query
+    try {
+			const idUser = id_user.split(',');
+			const { data: response } = await request({
+				url: `${KMART_BASE_URL}admin/orders/get-order-by?isConsumer=${is_consumer}&idUser=${idUser}`,
+				method: 'GET',
+				headers: {
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+				},
+			})
+			return OK(res, response.data);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function getTransaksiDetail (models) {
+  return async (req, res, next) => {
+		let { startdate, enddate } = req.query
+    try {
+			const { data: response } = await request({
+				url: `${KMART_BASE_URL}admin/orders/get-transaksi-detail?startdate=${startdate}&enddate=${enddate}`,
+				method: 'GET',
+				headers: {
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+				},
+			})
+			return OK(res, response.data);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function blastNotifikasi (models) {
+  return async (req, res, next) => {
+		let { id_user } = req.query
+		let { payload } = req.body
+    try {
+			if(!id_user) { return NOT_FOUND(res, 'ID User harap diisi !'); }
+			const { data: response } = await request({
+				url: `${KMART_BASE_URL}admin/orders/blast-notif?id_user=${id_user}`,
+				method: 'PUT',
+				data: {
+					payload: {
+						title: payload.title,
+						body: payload.body,
+						image: payload.image ? payload.image : null,
+						screen: payload.screen,
+						params: payload.params ? { id: payload.params } : {}
+					}
+				},
+				headers: {
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+				},
+			})
+			return OK(res, response.data);
+			// return OK(res, { id_user, payload: {
+			// 			title: payload.title,
+			// 			body: payload.body,
+			// 			image: payload.image ? payload.image : null,
+			// 			screen: payload.screen,
+			// 			params: payload.params ? { id: payload.params } : {}
+			// 	}});
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function setupConsumer (models) {
+  return async (req, res, next) => {
+		let { startdate, enddate, is_consumer, is_null } = req.query
+    try {
+			const { data: response } = await request({
+				url: `${KMART_BASE_URL}users/consumers/member/setup-consumer?dateRange=${startdate},${enddate}&isConsumer=${is_consumer}&isNull=${is_null}`,
+				method: 'GET',
+				headers: {
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+				},
+			})
+
+			const { records } = response.data;
+
+			await models.Setup.update({ dataJson: JSON.stringify(records) }, {where: { kategori: 'USER' }})
+
+			return OK(res, records);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function getUserNotifikasi (models) {
   return async (req, res, next) => {
     try {
-			let tahun = new Date().getFullYear()
+			const data = await models.Setup.findOne({ where: { kategori: 'USER' } });
+
+			return OK(res, JSON.parse(data.dataJson));
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function reloadDashboardTransaksi (models) {
+  return async (req, res, next) => {
+		let { tahun } = req.query
+    try {
+			// let tahun = new Date().getFullYear()
+			const data = await models.Transaksi.findAll({
+				where: { tahun: tahun },
+				order: [
+					['idTransaksi', 'ASC'],
+				]
+			});
+			if(!data.length) {
+				const payload = [
+					{ tahun: tahun, bulan: 'Januari', dp: '0', bv: '0' },
+					{ tahun: tahun, bulan: 'Februari', dp: '0', bv: '0' },
+					{ tahun: tahun, bulan: 'Maret', dp: '0', bv: '0' },
+					{ tahun: tahun, bulan: 'April', dp: '0', bv: '0' },
+					{ tahun: tahun, bulan: 'Mei', dp: '0', bv: '0' },
+					{ tahun: tahun, bulan: 'Juni', dp: '0', bv: '0' },
+					{ tahun: tahun, bulan: 'Juli', dp: '0', bv: '0' },
+					{ tahun: tahun, bulan: 'Agustus', dp: '0', bv: '0' },
+					{ tahun: tahun, bulan: 'September', dp: '0', bv: '0' },
+					{ tahun: tahun, bulan: 'Oktober', dp: '0', bv: '0' },
+					{ tahun: tahun, bulan: 'November', dp: '0', bv: '0' },
+					{ tahun: tahun, bulan: 'Desember', dp: '0', bv: '0' },
+				]
+				await models.Transaksi.bulkCreate(payload)
+			}
 			let hasil = []
 			const login = await loginKnet()
 			for(let i=1; i <= 12; i++) {
@@ -752,6 +932,7 @@ function reloadDashboardTransaksi (models) {
 						let trx = []
 						data.map(v => {
 							trx.push({
+								orderNumber: v.token,
 								transaksi: {
 									period: v.bonusmonth,
 									date: v.datetrans,
@@ -775,18 +956,33 @@ function reloadDashboardTransaksi (models) {
 						dp: 0,
 						bv: 0,
 					}
-					let dataTransaksi = []
+					let dataKumpulTransaksi = []
 					kumpul.map(async vall => {
-						dataTransaksi.push(...vall.trx)
+						dataKumpulTransaksi.push(...vall.trx)
 						await Promise.all(vall.trx.map(val => {
 							meta.dp += val.total.dp
 							meta.bv += val.total.bv
 						}))
 					})
 	
+					const PATTERN = /INV-RS/
+					const mappingTransaksi = dataKumpulTransaksi.filter(str => !PATTERN.test(str.orderNumber))
+					
+					let jml = {
+						dp: 0,
+						bv: 0,
+					}
+
+					let dataTransaksi = []
+					await Promise.all(mappingTransaksi.map(async val => {
+						jml.dp += val.total.dp
+						jml.bv += val.total.bv
+						dataTransaksi.push(val)
+					}))
+
 					hasil.push({
 						bulan: bulanValues(tahun+"-"+i+"-01"),
-						dataJumlah: meta
+						dataJumlah: jml
 					})
 				}
 			}
@@ -797,7 +993,7 @@ function reloadDashboardTransaksi (models) {
 					dp: val.dataJumlah.dp,
 					bv: val.dataJumlah.bv
 				 }
-				await models.Transaksi.update(kirimdata, {where: { bulan: val.bulan }})
+				await models.Transaksi.update(kirimdata, {where: { bulan: val.bulan, tahun: tahun }})
 			})
 
 			return OK(res, hasil);
@@ -849,6 +1045,131 @@ function reloadDashboardUserActive (models) {
 			})
 
 			return OK(res, hasil);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function exportExcel () {
+  return async (req, res, next) => {
+		let { startdate, enddate, limit, totalPages } = req.query
+    try {
+			let workbook = new excel.Workbook();
+			for (let index = 1; index <= totalPages; index++) {
+				const { data: response } = await request({
+					url: `${KMART_BASE_URL}admin/orders/get-data-harian?dateRange=${startdate},${enddate}&page=${index}&limit=${limit}`,
+					method: 'GET',
+					// params: { dateRange: `${startdate},${enddate}` },
+					headers: {
+						// 'Authorization': `Bearer ${TOKEN}`,
+						'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+					},
+				})
+	
+				let kumpuldata = []
+				const { records } = response.data
+				records.map(val => {
+					let emit = {
+						orderNumber: val.orderNumber,
+						createdAt: convertDateTime2(val.createdAt),
+						shippingReceiptNumber: val.shippingReceiptNumber,
+						orderStatusLatest: val.orderStatusLatest,
+						shippingType: val.shippingType,
+						carrierName: val.carrierName,
+						Product: val.productDetails[0].name,
+						namaPembeli: val.dataUser.consumerType != 'MEMBER' ? val.dataMember.fullname : val.dataUser.fullname,
+						notelpPembeli: val.dataUser.consumerType != 'MEMBER' ? val.dataMember.devicenumber : val.dataUser.devicenumber,
+						memberRefCode: val.dataUser.customerRegRefcode,
+						namaReferal: val.dataUser.consumerType != 'MEMBER' ? val.dataMember.fullname : '',
+						telpReferal: val.dataUser.consumerType != 'MEMBER' ? val.dataMember.devicenumber : '',
+					}
+					kumpuldata.push(emit)
+				})
+	
+				let worksheet = workbook.addWorksheet(`Data Order${index > 1 ? ` - Page ${index}` : '' }`);
+				worksheet.columns = [
+					{ header: "Invoice", key: "orderNumber", width: 20 },
+					{ header: "Tanggal Order", key: "createdAt", width: 20 },
+					{ header: "Product", key: "Product", width: 50 },
+					{ header: "Kurir", key: "carrierName", width: 10 },
+					{ header: "No Resi", key: "shippingReceiptNumber", width: 20 },
+					{ header: "Nama Pembeli", key: "namaPembeli", width: 20 },
+					{ header: "Telepon Pembeli", key: "notelpPembeli", width: 20 },
+					{ header: "Member Ref Code", key: "memberRefCode", width: 20 },
+					{ header: "Status", key: "orderStatusLatest", width: 20 },
+					{ header: "COD / NON COD", key: "shippingType", width: 20 },
+					{ header: "Nama Referal", key: "namaReferal", width: 20 },
+					{ header: "Kontak Referal", key: "telpReferal", width: 20 },
+				];
+				const figureColumns = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+				figureColumns.forEach((i) => {
+					worksheet.getColumn(i).alignment = { horizontal: "left" };
+				});
+				worksheet.addRows(kumpuldata);
+				worksheet.state = 'visible';
+			}
+
+			res.setHeader(
+				"Content-Type",
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+			);
+		
+			return workbook.xlsx.write(res).then(function () {
+				res.status(200).end();
+			});
+			// return OK(res, kumpuldata)
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function exportExcelConsumer () {
+  return async (req, res, next) => {
+		let { dataOrder } = req.query
+    try {
+			let records = JSON.parse(dataOrder)
+
+			// let records = await Promise.all(dataKumpul.map(async val => {
+			// 	let dataorder = await Promise.all(val.dataOrders.map(async val1 => {
+			// 		let dataproduct = await Promise.all(val1.productDetails.map(val2 => {
+			// 			return `${val2.name} (${val2.quantity})`
+			// 		}))
+			// 		return `${val1.orderNumber} - ${dataproduct}`
+			// 	}))
+			// 	return {
+			// 		name: val.name,
+			// 		email: val.email,
+			// 		deviceNumber: val.deviceNumber,
+			// 		product: dataorder.join('; '),
+			// 	}
+			// }))
+
+			let workbook = new excel.Workbook();
+			let worksheet = workbook.addWorksheet(`List Data`);
+			worksheet.columns = [
+				{ header: "Nama Pembeli", key: "name", width: 20 },
+				{ header: "Email Pembeli", key: "email", width: 20 },
+				{ header: "Telepon Pembeli", key: "deviceNumber", width: 20 },
+				// { header: "Product", key: "product", width: 20 },
+			];
+			const figureColumns = [1, 2, 3];
+			figureColumns.forEach((i) => {
+				worksheet.getColumn(i).alignment = { horizontal: "left" };
+			});
+			worksheet.addRows(records);
+			worksheet.state = 'visible';
+			
+			res.setHeader(
+				"Content-Type",
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+			);
+		
+			return workbook.xlsx.write(res).then(function () {
+				res.status(200).end();
+			});
+			// return OK(res, dataOrder)
     } catch (err) {
 			return NOT_FOUND(res, err.message)
     }
@@ -950,7 +1271,6 @@ module.exports = {
   getdataOrder,
   getProductOrderSummary,
   getProductVariant,
-  exportExcel,
   getdataNonCod,
   hitUpdateStatus,
   getdataKmart,
@@ -958,7 +1278,15 @@ module.exports = {
   getDashboardUserActive,
   getDashboardProduct,
   getdataConsumer,
+  getTopicUser,
+  getOrderUser,
+  getTransaksiDetail,
+  blastNotifikasi,
+  setupConsumer,
+  getUserNotifikasi,
   reloadDashboardTransaksi,
   reloadDashboardUserActive,
+  exportExcel,
+  exportExcelConsumer,
   testing,
 }

@@ -25,6 +25,29 @@ async function loginKnet () {
 
 async function cronTransaksi (models) {
 	let tahun = new Date().getFullYear()
+	const data = await models.Transaksi.findAll({
+		where: { tahun: tahun },
+		order: [
+			['idTransaksi', 'ASC'],
+		]
+	});
+	if(!data.length) {
+		const payload = [
+			{ tahun: tahun, bulan: 'Januari', dp: '0', bv: '0' },
+			{ tahun: tahun, bulan: 'Februari', dp: '0', bv: '0' },
+			{ tahun: tahun, bulan: 'Maret', dp: '0', bv: '0' },
+			{ tahun: tahun, bulan: 'April', dp: '0', bv: '0' },
+			{ tahun: tahun, bulan: 'Mei', dp: '0', bv: '0' },
+			{ tahun: tahun, bulan: 'Juni', dp: '0', bv: '0' },
+			{ tahun: tahun, bulan: 'Juli', dp: '0', bv: '0' },
+			{ tahun: tahun, bulan: 'Agustus', dp: '0', bv: '0' },
+			{ tahun: tahun, bulan: 'September', dp: '0', bv: '0' },
+			{ tahun: tahun, bulan: 'Oktober', dp: '0', bv: '0' },
+			{ tahun: tahun, bulan: 'November', dp: '0', bv: '0' },
+			{ tahun: tahun, bulan: 'Desember', dp: '0', bv: '0' },
+		]
+		await models.Transaksi.bulkCreate(payload)
+	}
 	let hasil = []
 	for(let i=1; i <= 12; i++) {
 		let jumlah_hari = new Date(tahun, i, 0).getDate()
@@ -54,6 +77,7 @@ async function cronTransaksi (models) {
 				let trx = []
 				data.map(v => {
 					trx.push({
+						orderNumber: v.token,
 						transaksi: {
 							period: v.bonusmonth,
 							date: v.datetrans,
@@ -77,19 +101,34 @@ async function cronTransaksi (models) {
 				dp: 0,
 				bv: 0,
 			}
-			let dataTransaksi = []
-			kumpul.map(async vall => {
-				dataTransaksi.push(...vall.trx)
-				await Promise.all(vall.trx.map(val => {
-					meta.dp += val.total.dp
-					meta.bv += val.total.bv
-				}))
-			})
+			let dataKumpulTransaksi = []
+				kumpul.map(async vall => {
+					dataKumpulTransaksi.push(...vall.trx)
+					await Promise.all(vall.trx.map(val => {
+						meta.dp += val.total.dp
+						meta.bv += val.total.bv
+					}))
+				})
 
-			hasil.push({
-				bulan: bulanValues(tahun+"-"+i+"-01"),
-				dataJumlah: meta
-			})
+				const PATTERN = /INV-RS/
+				const mappingTransaksi = dataKumpulTransaksi.filter(str => !PATTERN.test(str.orderNumber))
+				
+				let jml = {
+					dp: 0,
+					bv: 0,
+				}
+
+				let dataTransaksi = []
+				await Promise.all(mappingTransaksi.map(async val => {
+					jml.dp += val.total.dp
+					jml.bv += val.total.bv
+					dataTransaksi.push(val)
+				}))
+
+				hasil.push({
+					bulan: bulanValues(tahun+"-"+i+"-01"),
+					dataJumlah: jml
+				})
 		}
 	}
 	hasil.map(async val => {
@@ -99,7 +138,7 @@ async function cronTransaksi (models) {
 			dp: val.dataJumlah.dp,
 			bv: val.dataJumlah.bv
 			}
-		await models.Transaksi.update(kirimdata, {where: { bulan: val.bulan }})
+		await models.Transaksi.update(kirimdata, {where: { bulan: val.bulan, tahun: tahun }})
 	})
 
 	return 'success'

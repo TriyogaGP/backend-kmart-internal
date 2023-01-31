@@ -4,6 +4,7 @@ const {
   getDecrypt,
   getMenu,
   crudMenu,
+  crudSequenceMenu,
   getRole,
   crudRole,
   getRoleMenu,
@@ -20,6 +21,7 @@ module.exports = models => {
   route.route('/decryptPass').get(getDecrypt())
   route.route('/getMenu').get(getMenu(models))
   route.route('/postMenu').post(crudMenu(models))
+  route.route('/postSequenceMenu').post(crudSequenceMenu(models))
   route.route('/getRole').get(getRole(models))
   route.route('/postRole').post(crudRole(models))
   route.route('/getRoleMenu').get(getRoleMenu(models))

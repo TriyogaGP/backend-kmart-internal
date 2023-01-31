@@ -5,7 +5,6 @@ const {
   getdataOrder,
   getProductOrderSummary,
   getProductVariant,
-  exportExcel,
   getdataNonCod,
   hitUpdateStatus,
   getdataKmart,
@@ -13,8 +12,16 @@ const {
   getDashboardUserActive,
   getDashboardProduct,
   getdataConsumer,
+  getTopicUser,
+  getOrderUser,
+  getTransaksiDetail,
+  blastNotifikasi,
+  setupConsumer,
+  getUserNotifikasi,
   reloadDashboardTransaksi,
   reloadDashboardUserActive,
+  exportExcel,
+  exportExcelConsumer,
   testing,
 } = require('../controllers/kmart.controller')
 const {
@@ -36,15 +43,22 @@ module.exports = models => {
   route.route('/getdataProductOrderSummary').get(verifyToken, getProductOrderSummary())
   route.route('/getdataVariantProduct').get(verifyToken, getProductVariant())
   route.route('/getdataNonCod').get(verifyToken, getdataNonCod())
-  route.route('/getdataConsumer').get(getdataConsumer())
+  route.route('/getdataConsumer').get(verifyToken, getdataConsumer())
+  route.route('/getdataTopicConsumer').get(verifyToken, getTopicUser())
+  route.route('/getdataOrderConsumer').get(verifyToken, getOrderUser())
+  route.route('/getTransaksiDetail').get(verifyToken, getTransaksiDetail())
   route.route('/hitUpdateStatus').get(verifyToken, hitUpdateStatus())
-  route.route('/exportExcel').get(exportExcel())
   route.route('/getdataKmart').get(verifyToken, getdataKmart())
   route.route('/getUserGoogle').get(verifyToken, getUserGoogle(models))
   route.route('/google/loader/UserAcquisition').post(uploadBerkas, updateUserAcquisition(models))
   route.route('/google/loader/UserInstall').post(uploadBerkas, updateUserInstall(models))
   route.route('/reloadDashboardTransaksi').get(reloadDashboardTransaksi(models))
   route.route('/reloadDashboardUserActive').get(reloadDashboardUserActive(models))
+  route.route('/blastNotifikasi').put(blastNotifikasi())
+  route.route('/setupConsumer').get(setupConsumer(models))
+  route.route('/getUserNotifikasi').get(getUserNotifikasi(models))
+  route.route('/exportExcel').get(exportExcel())
+  route.route('/exportExcelConsumer').get(exportExcelConsumer())
   route.route('/testing').get(testing(models))
   
   return route;

@@ -92,7 +92,7 @@ function crudMenu (models) {
 				}
 				await models.Menu.create(kirimdata)
 			}else if(body.jenis == 'EDIT'){
-				if(await models.Menu.findOne({where: {[Op.or]: [{menuRoute: body.menu_route},{menuText: body.menu_text}], [Op.not]: [{idRole: body.id_role}]}})) return NOT_FOUND(res, 'Menu Route atau Menu Text sudah di gunakan !')
+				if(await models.Menu.findOne({where: {[Op.or]: [{menuRoute: body.menu_route},{menuText: body.menu_text}], [Op.not]: [{idMenu: body.id_menu}]}})) return NOT_FOUND(res, 'Menu Route atau Menu Text sudah di gunakan !')
 				kirimdata = {
 					kategori: body.kategori,
 					menuRoute: body.menu_route,
@@ -186,6 +186,21 @@ function crudRole (models) {
   }  
 }
 
+function crudSequenceMenu (models) {
+  return async (req, res, next) => {
+		let body = { ...req.body }
+    try {
+			const { Menu } = body
+			await Menu.map(async (val, i) => {
+				await models.Menu.update({ menuSequence: i + 1 }, { where: { idMenu: val.idMenu } })
+			})
+			return OK(res);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
 function getRoleMenu (models) {
   return async (req, res, next) => {
     let { id_role } = req.query
@@ -226,6 +241,7 @@ function getRoleMenu (models) {
 						menuRoute: dataMenu.menuRoute,
 						menuText: dataMenu.menuText,
 						menuIcon: dataMenu.menuIcon,
+						menuSequence: dataMenu.menuSequence,
 						statusAktif: dataMenu.statusAktif,
 					});
 					return objectBaru
@@ -296,6 +312,7 @@ module.exports = {
   getDecrypt,
   getMenu,
   crudMenu,
+  crudSequenceMenu,
   getRole,
   crudRole,
   getRoleMenu,
