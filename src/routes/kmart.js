@@ -18,6 +18,7 @@ const {
   blastNotifikasi,
   setupConsumer,
   getUserNotifikasi,
+  // getDetailUserActive,
   reloadDashboardTransaksi,
   reloadDashboardUserActive,
   exportExcel,
@@ -52,6 +53,7 @@ module.exports = models => {
   route.route('/getUserGoogle').get(verifyToken, getUserGoogle(models))
   route.route('/google/loader/UserAcquisition').post(uploadBerkas, updateUserAcquisition(models))
   route.route('/google/loader/UserInstall').post(uploadBerkas, updateUserInstall(models))
+  // route.route('/getDetailUserActive').get(getDetailUserActive(models))
   route.route('/reloadDashboardTransaksi').get(reloadDashboardTransaksi(models))
   route.route('/reloadDashboardUserActive').get(reloadDashboardUserActive(models))
   route.route('/blastNotifikasi').put(blastNotifikasi())

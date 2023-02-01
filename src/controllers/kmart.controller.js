@@ -4,6 +4,7 @@ const { convertDateTime2, bulanValues } = require('../utils/helper.utils')
 const excel = require("exceljs");
 const _ = require("lodash");
 const { DateTime } = require('luxon')
+const dayjs = require('dayjs')
 const dotenv = require('dotenv');
 dotenv.config();
 const KMART_BASE_URL = 'https://kld-api-stg.k-mart.co.id/v1/'
@@ -129,14 +130,14 @@ function getProductOrderSummary () {
 
 function getProductVariant () {
   return async (req, res, next) => {
-		let { inv, productPackage, kondisi } = req.query
+		let { productPackageCombination, inv, idProductPackage, kondisi } = req.query
     try {
 			let url = `${KMART_BASE_URL}admin/orders/get-varian-product`
 			if(kondisi == 1){
 				const { data: response } = await request({
 					url: `${url}`,
 					method: 'GET',
-					params: { productPackage: `${productPackage}` },
+					params: { productPackageCombination: `${productPackageCombination}` },
 					headers: {
 						// 'Authorization': `Bearer ${TOKEN}`,
 						'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
@@ -155,6 +156,18 @@ function getProductVariant () {
 					url: `${url}`,
 					method: 'GET',
 					params: { inv: `${_.join(hasil, ',')}` },
+					headers: {
+						// 'Authorization': `Bearer ${TOKEN}`,
+						'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+					},
+				})
+				return OK(res, response.data);
+			}
+			if(kondisi == 3){
+				const { data: response } = await request({
+					url: `${url}`,
+					method: 'GET',
+					params: { idProductPackage: idProductPackage },
 					headers: {
 						// 'Authorization': `Bearer ${TOKEN}`,
 						'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
@@ -877,6 +890,38 @@ function getUserNotifikasi (models) {
   }  
 }
 
+// function getDetailUserActive (models) {
+//   return async (req, res, next) => {
+// 		let { page = 1, limit = 20, isMember, detail, bulan } = req.query
+//     try {
+// 			const mappingbulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+// 			let bulanNum = _.indexOf(mappingbulan, bulan) + 1
+// 			bulanNum = bulanNum >= 10 ? bulanNum : "0"+bulanNum
+// 			let tahun = new Date().getFullYear()
+// 			let jumlah_hari = new Date(tahun, bulanNum, 0).getDate()
+// 			const getBody = {
+// 				dateFrom: dayjs(tahun+"-"+bulanNum+"-01").toJSON(),
+// 				dateTo: dayjs(tahun+"-"+bulanNum+"-"+jumlah_hari).toJSON()
+// 			}
+
+// 			// const { data: response } = await request({
+// 			// 	url: `${KMART_BASE_URL}admin/orders/get-user-active?page=${page}&limit=${limit}&dateRange=${getBody.dateFrom},${getBody.dateTo}&isMember=${isMember}&detail=${detail}`,
+// 			// 	method: 'GET',
+// 			// 	headers: {
+// 			// 		// 'Authorization': `Bearer ${TOKEN}`,
+// 			// 		'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+// 			// 	},
+// 			// })
+// 			// const { records, pageSummary } = response.data
+
+// 			// return OK(res, { records, pageSummary });
+// 			return OK(res, { getBody, url: `${KMART_BASE_URL}admin/orders/get-user-active?page=${page}&limit=${limit}&dateRange=${getBody.dateFrom},${getBody.dateTo}&isMember=${isMember}&detail=${detail}` });
+//     } catch (err) {
+// 			return NOT_FOUND(res, err.message)
+//     }
+//   }  
+// }
+
 function reloadDashboardTransaksi (models) {
   return async (req, res, next) => {
 		let { tahun } = req.query
@@ -1013,8 +1058,8 @@ function reloadDashboardUserActive (models) {
 				let jumlah_hari = new Date(tahun, i, 0).getDate()
 				let bulan = i >= 10 ? i : "0"+i
 				const getBody = {
-					dateFrom: tahun+"-"+bulan+"-01",
-					dateTo: tahun+"-"+bulan+"-"+jumlah_hari
+					dateFrom: dayjs(tahun+"-"+bulan+"-01").toJSON(),
+					dateTo: dayjs(tahun+"-"+bulan+"-"+jumlah_hari).toJSON()
 				}
 
 				const { data: response } = await request({
@@ -1284,6 +1329,7 @@ module.exports = {
   blastNotifikasi,
   setupConsumer,
   getUserNotifikasi,
+  // getDetailUserActive,
   reloadDashboardTransaksi,
   reloadDashboardUserActive,
   exportExcel,

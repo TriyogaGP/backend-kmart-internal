@@ -1,6 +1,7 @@
 const { request } = require('../utils/request')
 const { bulanValues } = require('../utils/helper.utils')
 const _ = require("lodash");
+const dayjs = require('dayjs');
 const dotenv = require('dotenv');
 dotenv.config();
 const KMART_BASE_URL = 'https://kld-api-stg.k-mart.co.id/v1/'
@@ -151,8 +152,8 @@ async function cronUserActive (models, isMember, detail) {
 		let jumlah_hari = new Date(tahun, i, 0).getDate()
 		let bulan = i >= 10 ? i : "0"+i
 		const getBody = {
-			dateFrom: tahun+"-"+bulan+"-01",
-			dateTo: tahun+"-"+bulan+"-"+jumlah_hari
+			dateFrom: dayjs(tahun+"-"+bulan+"-01").toJSON(),
+			dateTo: dayjs(tahun+"-"+bulan+"-"+jumlah_hari).toJSON()
 		}
 
 		const { data: response } = await request({
