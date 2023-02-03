@@ -890,37 +890,66 @@ function getUserNotifikasi (models) {
   }  
 }
 
-// function getDetailUserActive (models) {
-//   return async (req, res, next) => {
-// 		let { page = 1, limit = 20, isMember, detail, bulan } = req.query
-//     try {
-// 			const mappingbulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
-// 			let bulanNum = _.indexOf(mappingbulan, bulan) + 1
-// 			bulanNum = bulanNum >= 10 ? bulanNum : "0"+bulanNum
-// 			let tahun = new Date().getFullYear()
-// 			let jumlah_hari = new Date(tahun, bulanNum, 0).getDate()
-// 			const getBody = {
-// 				dateFrom: dayjs(tahun+"-"+bulanNum+"-01").toJSON(),
-// 				dateTo: dayjs(tahun+"-"+bulanNum+"-"+jumlah_hari).toJSON()
-// 			}
+function getDetailUserActive (models) {
+  return async (req, res, next) => {
+		let { page = 1, limit = 20, isMember, detail, bulan } = req.query
+    try {
+			const mappingbulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+			let bulanNum = _.indexOf(mappingbulan, bulan) + 1
+			bulanNum = bulanNum >= 10 ? bulanNum : "0"+bulanNum
+			let tahun = new Date().getFullYear()
+			let jumlah_hari = new Date(tahun, bulanNum, 0).getDate()
+			const getBody = {
+				dateFrom: dayjs(tahun+"-"+bulanNum+"-01").utc().format(),
+					dateTo: dayjs(tahun+"-"+bulanNum+"-"+jumlah_hari).utc().format()
+			}
 
-// 			// const { data: response } = await request({
-// 			// 	url: `${KMART_BASE_URL}admin/orders/get-user-active?page=${page}&limit=${limit}&dateRange=${getBody.dateFrom},${getBody.dateTo}&isMember=${isMember}&detail=${detail}`,
-// 			// 	method: 'GET',
-// 			// 	headers: {
-// 			// 		// 'Authorization': `Bearer ${TOKEN}`,
-// 			// 		'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
-// 			// 	},
-// 			// })
-// 			// const { records, pageSummary } = response.data
+			const { data: response } = await request({
+				url: `${KMART_BASE_URL}admin/orders/get-user-active?page=${page}&limit=${limit}&dateRange=${getBody.dateFrom},${getBody.dateTo}&isMember=${isMember}&detail=${detail}`,
+				method: 'GET',
+				headers: {
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+				},
+			})
+			const { records, pageSummary } = response.data
 
-// 			// return OK(res, { records, pageSummary });
-// 			return OK(res, { getBody, url: `${KMART_BASE_URL}admin/orders/get-user-active?page=${page}&limit=${limit}&dateRange=${getBody.dateFrom},${getBody.dateTo}&isMember=${isMember}&detail=${detail}` });
-//     } catch (err) {
-// 			return NOT_FOUND(res, err.message)
-//     }
-//   }  
-// }
+			return OK(res, { records, pageSummary });
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function getDetailOrderUserActive (models) {
+  return async (req, res, next) => {
+		let { isMember, idUser, bulan } = req.query
+    try {
+			const mappingbulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+			let bulanNum = _.indexOf(mappingbulan, bulan) + 1
+			bulanNum = bulanNum >= 10 ? bulanNum : "0"+bulanNum
+			let tahun = new Date().getFullYear()
+			let jumlah_hari = new Date(tahun, bulanNum, 0).getDate()
+			const getBody = {
+				dateFrom: dayjs(tahun+"-"+bulanNum+"-01").utc().format(),
+					dateTo: dayjs(tahun+"-"+bulanNum+"-"+jumlah_hari).utc().format()
+			}
+
+			const { data: response } = await request({
+				url: `${KMART_BASE_URL}admin/orders/get-detail-order-user-active?dateRange=${getBody.dateFrom},${getBody.dateTo}&isMember=${isMember}&idUser=${idUser}`,
+				method: 'GET',
+				headers: {
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+				},
+			})
+
+			return OK(res, response.data);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
 
 function reloadDashboardTransaksi (models) {
   return async (req, res, next) => {
@@ -1058,8 +1087,8 @@ function reloadDashboardUserActive (models) {
 				let jumlah_hari = new Date(tahun, i, 0).getDate()
 				let bulan = i >= 10 ? i : "0"+i
 				const getBody = {
-					dateFrom: dayjs(tahun+"-"+bulan+"-01").toJSON(),
-					dateTo: dayjs(tahun+"-"+bulan+"-"+jumlah_hari).toJSON()
+					dateFrom: dayjs(tahun+"-"+bulan+"-01").utc().format(),
+					dateTo: dayjs(tahun+"-"+bulan+"-"+jumlah_hari).utc().format()
 				}
 
 				const { data: response } = await request({
@@ -1329,7 +1358,8 @@ module.exports = {
   blastNotifikasi,
   setupConsumer,
   getUserNotifikasi,
-  // getDetailUserActive,
+  getDetailUserActive,
+  getDetailOrderUserActive,
   reloadDashboardTransaksi,
   reloadDashboardUserActive,
   exportExcel,

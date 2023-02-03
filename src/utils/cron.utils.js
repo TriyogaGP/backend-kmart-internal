@@ -152,8 +152,8 @@ async function cronUserActive (models, isMember, detail) {
 		let jumlah_hari = new Date(tahun, i, 0).getDate()
 		let bulan = i >= 10 ? i : "0"+i
 		const getBody = {
-			dateFrom: dayjs(tahun+"-"+bulan+"-01").toJSON(),
-			dateTo: dayjs(tahun+"-"+bulan+"-"+jumlah_hari).toJSON()
+			dateFrom: dayjs(tahun+"-"+bulan+"-01").utc().format(),
+			dateTo: dayjs(tahun+"-"+bulan+"-"+jumlah_hari).utc().format()
 		}
 
 		const { data: response } = await request({
