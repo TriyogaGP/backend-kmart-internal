@@ -5,7 +5,7 @@ const {
 	_buildResponseLoggerAdmin, 
 	_buildResponseLoggerPeserta 
 } = require('../utils/build-response');
-const { encrypt, decrypt, convertDateTime } = require('../utils/helper.utils')
+const { encrypt, decrypt, convertDateTime, buildMysqlResponseWithPagination } = require('../utils/helper.utils')
 const { Op } = require('sequelize')
 const sequelize = require('sequelize')
 const { logger } = require('../configs/db.winston')
@@ -48,17 +48,52 @@ function getDecrypt () {
 
 function getMenu (models) {
   return async (req, res, next) => {
-		let { kategori } = req.query
+		let { pilihan, kategori, page = 1, limit = 10, keyword } = req.query
 		let where = {}
     try {
-			if(kategori) {
-				where.kategori = kategori
+			const OFFSET = page > 0 ? (page - 1) * parseInt(limit) : undefined
+			order = [
+				['kategori', 'DESC'],
+				['menuSequence', 'ASC']
+			]
+
+			if(pilihan == 'ALL') {
+				if(kategori) {
+					where.kategori = kategori
+				}	
+
+				const dataMenu = await models.Menu.findAll({
+					where,
+					order,
+				});
+
+				return OK(res, dataMenu);
 			}
-      const dataMenu = await models.Menu.findAll({
+
+			const whereKey = keyword ? {
+				kategori: kategori,
+				[Op.or]: [
+					{ menuText : { [Op.like]: `%${keyword}%` }},
+					{ menuRoute : { [Op.like]: `%${keyword}%` }},
+					{ kategori : { [Op.like]: `%${keyword}%` }},
+				]
+			} : kategori ? { kategori: kategori } : {}
+
+			where = whereKey
+
+      const { count, rows: dataMenu } = await models.Menu.findAndCountAll({
 				where,
-				order: [['kategori', 'DESC'],['menuSequence', 'ASC'],]
+				order,
+				limit: parseInt(limit),
+				offset: OFFSET,
 			});
-			return OK(res, dataMenu);
+
+			const responseData = buildMysqlResponseWithPagination(
+				dataMenu,
+				{ limit, page, total: count }
+			)
+
+			return OK(res, responseData);
     } catch (err) {
 			return NOT_FOUND(res, err.message)
     }
@@ -124,9 +159,36 @@ function crudMenu (models) {
 
 function getRole (models) {
   return async (req, res, next) => {
+		let { sort, page = 1, limit = 10, keyword } = req.query
+    let where = {}
+		let order = []
     try {
-      const dataRole = await models.Role.findAll();
-			return OK(res, dataRole);
+			const OFFSET = page > 0 ? (page - 1) * parseInt(limit) : undefined
+			order = [
+				['createdAt', sort ? sort : 'ASC'],
+			]
+
+			const whereKey = keyword ? {
+				[Op.or]: [
+					{ namaRole : { [Op.like]: `%${keyword}%` }},
+				]
+			} : {}
+
+			where = whereKey
+
+			const { count, rows: dataRole } = await models.Role.findAndCountAll({
+				where,
+				order,
+				limit: parseInt(limit),
+				offset: OFFSET,
+			});
+
+			const responseData = buildMysqlResponseWithPagination(
+				dataRole,
+				{ limit, page, total: count }
+			)
+
+			return OK(res, responseData);
     } catch (err) {
 			return NOT_FOUND(res, err.message)
     }
@@ -203,13 +265,20 @@ function crudSequenceMenu (models) {
 
 function getRoleMenu (models) {
   return async (req, res, next) => {
-    let { id_role } = req.query
+    let { id_role, page = 1, limit = 10, keyword } = req.query
 		let where = {}
     try {
-			if(id_role) {
-				where.idRole = id_role
-			}
-      const dataRoleMenu = await models.RoleMenu.findAll({
+			const OFFSET = page > 0 ? (page - 1) * parseInt(limit) : undefined
+
+			const whereKey = keyword ? {
+				[Op.or]: [
+					{ '$Role.nama_role$' : { [Op.like]: `%${keyword}%` }},
+				]
+			} : id_role ? { idRole: id_role } : {}
+
+			where = whereKey
+
+      const { count, rows: dataRoleMenu } = await models.RoleMenu.findAndCountAll({
 				where,
 				include: [
 					{ 
@@ -217,7 +286,9 @@ function getRoleMenu (models) {
 						attributes: ['namaRole'],
 						where: { status: true }
 					}
-				]
+				],
+				limit: parseInt(limit),
+				offset: OFFSET,
 			});
 			let dataKumpul = []
 			await dataRoleMenu.map(val => {
@@ -250,8 +321,12 @@ function getRoleMenu (models) {
 				return objectBaru
 			}))
 
+			const responseData = buildMysqlResponseWithPagination(
+				result,
+				{ limit, page, total: count }
+			)
 
-			return OK(res, result);
+			return OK(res, responseData);
     } catch (err) {
 			return NOT_FOUND(res, err.message)
     }

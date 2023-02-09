@@ -149,6 +149,20 @@ function bulanValues(str) {
 	return mnth
 }
 
+function buildMysqlResponseWithPagination(records, params) {
+	const { limit = 25, page = 1, total } = params;
+	const totalPages = Math.ceil(total / limit);
+	return {
+		records,
+		pageSummary: {
+		page: Number(page),
+		limit: Number(limit),
+		total,
+		totalPages,
+		},
+	};
+}
+
 module.exports = {
   encrypt,
 	decrypt,
@@ -162,4 +176,5 @@ module.exports = {
 	convertDateTime2,
 	convertDateGabung,
 	bulanValues,
+	buildMysqlResponseWithPagination,
 }

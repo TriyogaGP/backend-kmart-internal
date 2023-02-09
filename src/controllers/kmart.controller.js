@@ -9,6 +9,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 const KMART_BASE_URL = 'https://kld-api-stg.k-mart.co.id/v1/'
 const KNET_BASE_URL = 'https://api.k-link.dev/api/'
+const PLBBO_BASE_URL = 'https://plbbo.akademiinspiradzi.com/wp-json/v1/'
 const TOKEN = process.env.TOKEN
 const XINTERSERVICECALL = process.env.XINTERSERVICECALL
 
@@ -1339,6 +1340,30 @@ function testing (models) {
   }  
 }
 
+// ----------------------- PLBBO ----------------------- //
+function getBiodata () {
+  return async (req, res, next) => {
+		let { startdate, enddate, keyword, page, limit = 20 } = req.query
+    try {
+			let url = ''
+			if(startdate && enddate){ url += `&dateRange=${startdate},${enddate}` }
+			if(keyword){ url += `&keyword=${keyword}` }
+			const { data: response } = await request({
+				url: `${PLBBO_BASE_URL}api/get-biodata?page=${page}&limit=${limit}${url}`,
+				method: 'GET',
+				headers: {
+					// 'Authorization': `Bearer ${TOKEN}`,
+					// 'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+				},
+			})
+
+			return OK(res, response.data);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+// ----------------------- PLBBO ----------------------- //
 module.exports = {
   hitManualKMart,
   getdataHarian,
@@ -1365,4 +1390,7 @@ module.exports = {
   exportExcel,
   exportExcelConsumer,
   testing,
+	// ----- PLBBO ----- //
+	getBiodata,
+	// ----- PLBBO ----- //
 }

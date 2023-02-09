@@ -25,6 +25,9 @@ const {
   exportExcel,
   exportExcelConsumer,
   testing,
+  // ----- PLBBO ----- //
+  getBiodata,
+  // ----- PLBBO ----- //
 } = require('../controllers/kmart.controller')
 const {
   updateUserAcquisition,
@@ -64,6 +67,9 @@ module.exports = models => {
   route.route('/exportExcel').get(exportExcel())
   route.route('/exportExcelConsumer').get(exportExcelConsumer())
   route.route('/testing').get(testing(models))
+  // ----- PLBBO ----- //
+  route.route('/getBiodata').get(getBiodata())
+  // ----- PLBBO ----- //
   
   return route;
 }
