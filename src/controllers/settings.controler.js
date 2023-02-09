@@ -159,7 +159,7 @@ function crudMenu (models) {
 
 function getRole (models) {
   return async (req, res, next) => {
-		let { sort, page = 1, limit = 10, keyword } = req.query
+		let { pilihan, sort, page = 1, limit = 10, keyword } = req.query
     let where = {}
 		let order = []
     try {
@@ -167,6 +167,14 @@ function getRole (models) {
 			order = [
 				['createdAt', sort ? sort : 'ASC'],
 			]
+
+			if(pilihan == 'ALL') {
+				const dataRole = await models.Role.findAll({
+					order,
+				});
+
+				return OK(res, dataRole);
+			}
 
 			const whereKey = keyword ? {
 				[Op.or]: [

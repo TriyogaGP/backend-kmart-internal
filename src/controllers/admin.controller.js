@@ -1,5 +1,5 @@
 const { response, OK, NOT_FOUND, NO_CONTENT } = require('../utils/response.utils');
-const { encrypt, decrypt } = require('../utils/helper.utils');
+const { encrypt, decrypt, buildMysqlResponseWithPagination } = require('../utils/helper.utils');
 const { Op } = require('sequelize')
 const sequelize = require('sequelize')
 const bcrypt = require('bcrypt');
@@ -13,33 +13,31 @@ const BASE_URL = process.env.BASE_URL
 
 function getAdmin (models) {
   return async (req, res, next) => {
-		let { status_aktif, id_admin, level, sort } = req.query
-		let where = {}
+		let { sort, page = 1, limit = 10, keyword } = req.query
+    let where = {}
 		let order = []
     try {
+			const OFFSET = page > 0 ? (page - 1) * parseInt(limit) : undefined
 			order = [
 				['createdAt', sort ? sort : 'ASC'],
 			]
-			if(status_aktif) { 
-				where.statusAktif = status_aktif 
-				
-			}
-			if(id_admin) { 
-				where = {
-					idAdmin: id_admin,
-					statusAktif: true
-				}
-			}
-			if(level) { 
-				where = {
-					level: level,
-					statusAktif: true
-				}
-			}
-      const dataAdmin = await models.Admin.findAll({
+
+			const whereKey = keyword ? {
+				[Op.or]: [
+					{ nama : { [Op.like]: `%${keyword}%` }},
+					{ username : { [Op.like]: `%${keyword}%` }},
+					{ email : { [Op.like]: `%${keyword}%` }},
+				]
+			} : {}
+
+			where = whereKey
+
+      const { count, rows: dataAdmin } = await models.Admin.findAndCountAll({
 				where,
 				attributes: { exclude: ['createBy', 'updateBy', 'deleteBy', 'createdAt', 'updatedAt', 'deletedAt'] },
-				order
+				order,
+				limit: parseInt(limit),
+				offset: OFFSET,
 			});
 
 			const getResult = await Promise.all(dataAdmin.map(async (val) => {
@@ -54,7 +52,12 @@ function getAdmin (models) {
 				return dataKumpul;
 			}))
 
-			return OK(res, getResult);
+			const responseData = buildMysqlResponseWithPagination(
+				getResult,
+				{ limit, page, total: count }
+			)
+
+			return OK(res, responseData);
     } catch (err) {
 			return NOT_FOUND(res, err.message)
     }
