@@ -1251,6 +1251,39 @@ function exportExcelConsumer () {
   }  
 }
 
+function detailTransaksiOrder (models) {
+  return async (req, res, next) => {
+		let { id_user, data_transaksi } = req.body
+    try {
+			const { data: response } = await request({
+				url: `${KMART_BASE_URL}users/consumers?uids=${id_user.join(',')}`,
+				method: 'GET',
+				headers: {
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+				},
+			})
+
+			let record = response.data
+			let result = await Promise.all(record.map(async val => {
+				const { userBase, userDetail } = val;
+				const hasil = await data_transaksi.filter(str => str.id_user === userDetail.idUser)[0]
+				return {
+					...hasil,
+					fullname: userDetail.fullname,
+					consumerType: userDetail.consumerType,
+					email: userBase.email,
+					devicenumber: userBase.devicenumber,
+				}
+			}))
+
+			return OK(res, result);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
 function testing (models) {
   return async (req, res, next) => {
 		// let { startdate, enddate, kode, kategoriProduct } = req.query
@@ -1389,6 +1422,7 @@ module.exports = {
   reloadDashboardUserActive,
   exportExcel,
   exportExcelConsumer,
+  detailTransaksiOrder,
   testing,
 	// ----- PLBBO ----- //
 	getBiodata,
