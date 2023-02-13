@@ -1253,8 +1253,15 @@ function exportExcelConsumer () {
 
 function detailTransaksiOrder (models) {
   return async (req, res, next) => {
-		let { id_user, data_transaksi } = req.body
+		let { page, limit = 10 } = req.query
+		let { id_userNorder_number, data_transaksi } = req.body
     try {
+			const totalPages = Math.ceil(id_userNorder_number.length / Number(limit))
+
+			const arrayData = id_userNorder_number.slice((Number(page) - 1) * Number(limit), Number(page) * Number(limit))
+
+			let id_user = await Promise.all(arrayData.map(val => { return val.idUser }))
+
 			const { data: response } = await request({
 				url: `${KMART_BASE_URL}users/consumers?uids=${id_user.join(',')}`,
 				method: 'GET',
@@ -1267,17 +1274,28 @@ function detailTransaksiOrder (models) {
 			let record = response.data
 			let result = await Promise.all(record.map(async val => {
 				const { userBase, userDetail } = val;
-				const hasil = await data_transaksi.filter(str => str.id_user === userDetail.idUser)[0]
-				return {
-					...hasil,
-					fullname: userDetail.fullname,
-					consumerType: userDetail.consumerType,
-					email: userBase.email,
-					devicenumber: userBase.devicenumber,
-				}
+
+				const dataTransaksi = await data_transaksi.filter(str => str.id_user === userDetail.idUser).map(val2 => {
+					return {
+						...val2,
+						fullname: userDetail.fullname,
+						consumerType: userDetail.consumerType,
+						email: userBase.email,
+						devicenumber: userBase.devicenumber,
+					}
+				})
+				return dataTransaksi.flat()
 			}))
 
-			return OK(res, result);
+			return OK(res, {
+				records: result.flat(),
+				pageSummary: {
+					page: Number(page),
+					limit: Number(limit),
+					total: id_userNorder_number.length,
+					totalPages,
+				}
+			});
     } catch (err) {
 			return NOT_FOUND(res, err.message)
     }

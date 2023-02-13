@@ -68,7 +68,7 @@ module.exports = models => {
   route.route('/exportExcel').get(exportExcel())
   route.route('/exportExcelConsumer').get(exportExcelConsumer())
   route.route('/testing').get(testing(models))
-  route.route('/detailTransaksiOrder').post(detailTransaksiOrder())
+  route.route('/detailTransaksiOrder').put(detailTransaksiOrder())
   // ----- PLBBO ----- //
   route.route('/getBiodata').get(getBiodata())
   // ----- PLBBO ----- //
