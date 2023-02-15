@@ -1,6 +1,6 @@
 const { response, OK, NOT_FOUND, NO_CONTENT } = require('../utils/response.utils');
 const { request } = require('../utils/request')
-const { convertDateTime2, bulanValues } = require('../utils/helper.utils')
+const { convertDateTime2, dateconvert, bulanValues } = require('../utils/helper.utils')
 const excel = require("exceljs");
 const _ = require("lodash");
 const { DateTime } = require('luxon')
@@ -1162,7 +1162,7 @@ function exportExcel () {
 					kumpuldata.push(emit)
 				})
 	
-				let worksheet = workbook.addWorksheet(`Data Order${index > 1 ? ` - Page ${index}` : '' }`);
+				let worksheet = workbook.addWorksheet(`${Number(totalPages) > 1 ? `Data Order - Page ${index}` : 'Data Order'}`);
 				worksheet.columns = [
 					{ header: "Invoice", key: "orderNumber", width: 20 },
 					{ header: "Tanggal Order", key: "createdAt", width: 20 },
@@ -1251,6 +1251,91 @@ function exportExcelConsumer () {
   }  
 }
 
+function exportExcelTransaksiFix () {
+  return async (req, res, next) => {
+		let { limit, totalPages } = req.query
+		let { id_userNorder_number, data_transaksi } = req.body
+    try {
+			let workbook = new excel.Workbook();
+			for (let index = 1; index <= Number(totalPages); index++) {
+				const arrayData = id_userNorder_number.slice((index - 1) * Number(limit), index * Number(limit))
+				const arrayData2 = data_transaksi.slice((index - 1) * Number(limit), index * Number(limit))
+
+				let id_user = await Promise.all(arrayData.map(val => { return val.idUser }))
+
+				const { data: response } = await request({
+					url: `${KMART_BASE_URL}users/consumers?uids=${id_user.join(',')}`,
+					method: 'GET',
+					headers: {
+						// 'Authorization': `Bearer ${TOKEN}`,
+						'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+					},
+				})
+
+				let record = response.data
+				let result = await Promise.all(record.map(async val => {
+					const { userBase, userDetail } = val;
+
+					const dataTransaksi = await arrayData2.filter(str => str.id_user === userDetail.idUser).map(val2 => {
+						return {
+							...val2,
+							fullname: userDetail.fullname,
+							consumerType: userDetail.consumerType,
+							email: userBase.email,
+							devicenumber: userBase.devicenumber,
+						}
+					})
+					return dataTransaksi.flat()
+				}))
+
+				let kumpuldata = []
+				const records = result.flat()
+				records.map(val => {
+					let emit = {
+						orderNumber: val.orderNumber,
+						date: dateconvert(val.date),
+						fullname: val.fullname,
+						devicenumber: val.devicenumber,
+						email: val.email,
+						dp: val.dp,
+						bv: val.bv,
+					}
+					kumpuldata.push(emit)
+				})
+	
+				let worksheet = workbook.addWorksheet(`${Number(totalPages) > 1 ? `Data Transaksi - Page ${index}` : 'Data Transaksi'}`);
+				worksheet.columns = [
+					{ header: "Invoice", key: "orderNumber", width: 20 },
+					{ header: "Tanggal Order", key: "date", width: 20 },
+					{ header: "Nama", key: "fullname", width: 50 },
+					{ header: "No. Telepon", key: "devicenumber", width: 20 },
+					{ header: "Email", key: "email", width: 25 },
+					{ header: "DP", key: "dp", width: 25 },
+					{ header: "BV", key: "bv", width: 25 },
+				];
+				const figureColumns = [1, 2, 3, 4, 5, 6, 7];
+				figureColumns.forEach((i) => {
+					worksheet.getColumn(i).alignment = { horizontal: "left" };
+				});
+				worksheet.addRows(kumpuldata);
+				worksheet.state = 'visible';
+			}
+
+			res.setHeader(
+				"Content-Type",
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+			);
+		
+			return workbook.xlsx.write(res).then(function () {
+				res.status(200).end();
+			});
+			// return OK(res, kumpuldata)
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
 function detailTransaksiOrder (models) {
   return async (req, res, next) => {
 		let { page, limit = 10 } = req.query
@@ -1259,6 +1344,7 @@ function detailTransaksiOrder (models) {
 			const totalPages = Math.ceil(id_userNorder_number.length / Number(limit))
 
 			const arrayData = id_userNorder_number.slice((Number(page) - 1) * Number(limit), Number(page) * Number(limit))
+			const arrayData2 = data_transaksi.slice((Number(page) - 1) * Number(limit), Number(page) * Number(limit))
 
 			let id_user = await Promise.all(arrayData.map(val => { return val.idUser }))
 
@@ -1275,7 +1361,7 @@ function detailTransaksiOrder (models) {
 			let result = await Promise.all(record.map(async val => {
 				const { userBase, userDetail } = val;
 
-				const dataTransaksi = await data_transaksi.filter(str => str.id_user === userDetail.idUser).map(val2 => {
+				const dataTransaksi = await arrayData2.filter(str => str.id_user === userDetail.idUser).map(val2 => {
 					return {
 						...val2,
 						fullname: userDetail.fullname,
@@ -1440,6 +1526,7 @@ module.exports = {
   reloadDashboardUserActive,
   exportExcel,
   exportExcelConsumer,
+  exportExcelTransaksiFix,
   detailTransaksiOrder,
   testing,
 	// ----- PLBBO ----- //

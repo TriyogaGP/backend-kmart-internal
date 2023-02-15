@@ -24,6 +24,7 @@ const {
   reloadDashboardUserActive,
   exportExcel,
   exportExcelConsumer,
+  exportExcelTransaksiFix,
   detailTransaksiOrder,
   testing,
   // ----- PLBBO ----- //
@@ -67,6 +68,7 @@ module.exports = models => {
   route.route('/getUserNotifikasi').get(getUserNotifikasi(models))
   route.route('/exportExcel').get(exportExcel())
   route.route('/exportExcelConsumer').get(exportExcelConsumer())
+  route.route('/exportExcelTransaksiFix').put(exportExcelTransaksiFix())
   route.route('/testing').get(testing(models))
   route.route('/detailTransaksiOrder').put(detailTransaksiOrder())
   // ----- PLBBO ----- //
