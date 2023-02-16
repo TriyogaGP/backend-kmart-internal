@@ -178,7 +178,7 @@ try {
   // });
 
   //cron job
-    const { cronTransaksi, cronUserActive } = require('./utils/cron.utils')
+    const { cronTransaksi, cronTransaksiDaily, cronUserActive } = require('./utils/cron.utils')
     //transaksi
     let transaksi = cron.schedule('0 1 * * *', async () => {
       console.log('cron transaksi', new Date());
@@ -190,9 +190,21 @@ try {
       scheduled: true,
       timezone: "Asia/Jakarta"
     });
+
+    //transaksi daily
+    let transaksidaily = cron.schedule('5 1 * * *', async () => {
+      console.log('cron transaksi', new Date());
+      let response = await cronTransaksiDaily(models)
+      if(response == 'success') {
+        console.log('selesai simpan data');
+      }
+    }, {
+      scheduled: true,
+      timezone: "Asia/Jakarta"
+    });
     
     //user active member
-    let userActiveMember = cron.schedule('5 1 * * *', async () => {
+    let userActiveMember = cron.schedule('10 1 * * *', async () => {
       console.log('cron user member', new Date());
       let response = await cronUserActive(models, '1', '0')
       if(response == 'success') {
@@ -204,7 +216,7 @@ try {
     });
     
     //user active customer
-    let userActiveCustomer = cron.schedule('10 1 * * *', async () => {
+    let userActiveCustomer = cron.schedule('15 1 * * *', async () => {
       console.log('cron user customer', new Date());
       let response = await cronUserActive(models, '0', '0')
       if(response == 'success') {
@@ -216,6 +228,7 @@ try {
     });
 
     transaksi.start();
+    transaksidaily.start();
     userActiveMember.start();
     userActiveCustomer.start();
 

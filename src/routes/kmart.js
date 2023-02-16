@@ -9,6 +9,7 @@ const {
   hitUpdateStatus,
   getdataKmart,
   getDashboardTransaksi,
+  getDashboardTransaksiDaily,
   getDashboardUserActive,
   getDashboardProduct,
   getdataConsumer,
@@ -21,6 +22,7 @@ const {
   getDetailUserActive,
   getDetailOrderUserActive,
   reloadDashboardTransaksi,
+  reloadDashboardTransaksiDaily,
   reloadDashboardUserActive,
   exportExcel,
   exportExcelConsumer,
@@ -42,6 +44,7 @@ const { uploadBerkas } = require('../middleware/uploadBerkas');
 module.exports = models => {
   const route = Router();
   route.route('/getDashboardTransaksi').get(getDashboardTransaksi(models))
+  route.route('/getDashboardTransaksiDaily').get(getDashboardTransaksiDaily(models))
   route.route('/getDashboardUserActive').get(getDashboardUserActive(models))
   route.route('/getDashboardProduct').get(getDashboardProduct(models))
   route.route('/hitManualKMart').post(verifyToken, hitManualKMart())
@@ -62,6 +65,7 @@ module.exports = models => {
   route.route('/getDetailUserActive').get(getDetailUserActive(models))
   route.route('/getDetailOrderUserActive').get(getDetailOrderUserActive(models))
   route.route('/reloadDashboardTransaksi').get(reloadDashboardTransaksi(models))
+  route.route('/reloadDashboardTransaksiDaily').get(reloadDashboardTransaksiDaily(models))
   route.route('/reloadDashboardUserActive').get(reloadDashboardUserActive(models))
   route.route('/blastNotifikasi').put(blastNotifikasi())
   route.route('/setupConsumer').get(setupConsumer(models))

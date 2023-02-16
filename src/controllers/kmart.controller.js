@@ -672,6 +672,28 @@ function getDashboardTransaksi (models) {
   }  
 }
 
+function getDashboardTransaksiDaily (models) {
+  return async (req, res, next) => {
+		let { tahun, bulan } = req.query
+    try {
+			const data = await models.TransaksiDaily.findOne({
+				where: { tahun: tahun, bulan: bulan },
+				order: [
+					['idTransaksiDaily', 'ASC'],
+				]
+			});
+
+			return OK(res, {
+				tahun: data.tahun,
+				bulan: data.bulan,
+				dataJson: data.dataJson ? JSON.parse([data.dataJson]) : []
+			});
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
 function getDashboardUserActive (models) {
   return async (req, res, next) => {
 		let { userType, bulan } = req.query
@@ -1072,6 +1094,141 @@ function reloadDashboardTransaksi (models) {
 			})
 
 			return OK(res, hasil);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function reloadDashboardTransaksiDaily (models) {
+  return async (req, res, next) => {
+		let { tahun, bulan } = req.query
+    try {
+			const mappingbulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+			// let tahun = new Date().getFullYear()
+			// let bulan = mappingbulan[new Date().getMonth()]
+			let bulanNum = _.indexOf(mappingbulan, bulan) + 1
+			let jumlah_hari = new Date(tahun, bulanNum, 0).getDate()
+			let bln = bulanNum >= 10 ? bulanNum : "0"+bulanNum
+
+			const data = await models.TransaksiDaily.findAll({
+				where: { tahun: tahun, bulan: bulan },
+				order: [
+					['idTransaksiDaily', 'ASC'],
+				]
+			});
+			if(!data.length) {
+				const payload = { tahun: tahun, bulan: bulan, dataJson: null }
+				await models.TransaksiDaily.create(payload)
+			}
+
+			const login = await loginKnet()
+			const dataJson = []
+			const getBody = {
+				dateFrom: tahun+"-"+bln+"-01",
+				dateTo: tahun+"-"+bln+"-"+jumlah_hari
+			}
+			const { data: response } = await request({
+				url: `${KNET_BASE_URL}v.1/getKMartData`,
+				method: 'POST',
+				data: getBody,
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${login.token}`,
+				},
+			})
+			if(response){
+				let groupbyData = _.groupBy(response.resTransDetailPerDate, val => val.datetrans)
+
+				let kumpul = await Promise.all(Object.entries(groupbyData).map(val => {
+					let key = val[0]
+					let data = val[1]
+					let trx = []
+					data.map(v => {
+						trx.push({
+							orderNumber: v.token,
+							transaksi: {
+								period: v.bonusmonth,
+								date: v.datetrans,
+								order_no: v.orderno,
+								reff_no: v.token,
+							},
+							distributor: {
+								code: v.id_memb,
+								name: v.nmmember,
+							},
+							total: {
+								dp: v.totPayDP,
+								bv: v.total_bv,
+							},
+						})
+					})
+					return { key, trx }
+				})) 
+
+				let meta = {
+					dp: 0,
+					bv: 0,
+				}
+				let dataKumpulTransaksi = []
+				kumpul.map(async vall => {
+					dataKumpulTransaksi.push(...vall.trx)
+					await Promise.all(vall.trx.map(val => {
+						meta.dp += val.total.dp
+						meta.bv += val.total.bv
+					}))
+				})
+
+				const PATTERN = /INV-RS/
+				const mappingTransaksi = dataKumpulTransaksi.filter(str => !PATTERN.test(str.orderNumber))
+
+				let result = _.chain(mappingTransaksi).groupBy("transaksi.date").toPairs().map(val => {
+					return _.zipObject(['date', 'dataTrx'], val)
+				}).value()
+
+				let dataTransaksi = []
+				await Promise.all(result.map(async val => {
+					let jml = {
+						dp: 0,
+						bv: 0,
+					}
+					await Promise.all(val.dataTrx.map(vall => {
+						jml.dp += vall.total.dp
+						jml.bv += vall.total.bv
+					}))
+					dataTransaksi.push({
+						total: {
+							dp: jml.dp,
+							bv: jml.bv
+						},
+						transaksi: {
+							date: val.date,
+							records: val.dataTrx.length
+						}
+					})
+				}))
+
+				let jml = {
+					records: 0,
+					dp: 0,
+					bv: 0,
+				}
+				
+				dataTransaksi.map(async val => {
+					jml.records += val.transaksi.records
+					jml.dp += val.total.dp
+					jml.bv += val.total.bv
+					dataJson.push({
+						tanggal: new Date(val.transaksi.date).getDate(),
+						record: val.transaksi.records,
+						dp: val.total.dp,
+						bv: val.total.bv,
+					})
+				});
+			}
+
+			await models.TransaksiDaily.update({ tahun, bulan, dataJson: JSON.stringify(dataJson)}, { where: { tahun, bulan } })
+			return OK(res);
     } catch (err) {
 			return NOT_FOUND(res, err.message)
     }
@@ -1511,6 +1668,7 @@ module.exports = {
   hitUpdateStatus,
   getdataKmart,
   getDashboardTransaksi,
+  getDashboardTransaksiDaily,
   getDashboardUserActive,
   getDashboardProduct,
   getdataConsumer,
@@ -1523,6 +1681,7 @@ module.exports = {
   getDetailUserActive,
   getDetailOrderUserActive,
   reloadDashboardTransaksi,
+  reloadDashboardTransaksiDaily,
   reloadDashboardUserActive,
   exportExcel,
   exportExcelConsumer,
