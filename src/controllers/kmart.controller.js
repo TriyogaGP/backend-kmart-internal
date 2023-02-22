@@ -229,7 +229,7 @@ function hitUpdateStatus () {
 
 function getdataKmart () {
   return async (req, res, next) => {
-		let { startdate, enddate, kode, kategoriProduct, Provinsi } = req.query
+		let { startdate, enddate, kode, kategoriProduct, Provinsi, sort = '' } = req.query
     try {
 			const login = await loginKnet()
 			const getBody = {
@@ -302,6 +302,31 @@ function getdataKmart () {
 					jml.bv += val.total.bv
 					dataTransaksi.push(val)
 				}))
+
+				if(sort){
+					sort = JSON.parse(sort)
+					let fieldName = await Promise.all(sort.sortBy.map(val => {
+						const hasil = []
+						if(val == 'date' || val == 'reff_no'){
+							hasil.push(`transaksi.${val}`)
+						}else if(val == 'code' || val == 'name'){
+							hasil.push(`distributor.${val}`)
+						}else if(val == 'dp' || val == 'bv'){
+							hasil.push(`total.${val}`)
+						}
+						return hasil[0]
+					}))
+					let order = await Promise.all(sort.sortDesc.map(val => {
+						const hasil = []	
+						if(val){
+							hasil.push(`desc`)
+						}else{
+							hasil.push(`asc`)
+						}
+						return hasil[0]
+					}))
+					return OK(res, { dataTransaksi: _.orderBy(dataTransaksi, fieldName, order), dataJumlah: jml });
+				}
 
 				return OK(res, { dataTransaksi: _.orderBy(dataTransaksi, 'transaksi.date', 'asc'), dataJumlah: jml });
 			}
@@ -424,6 +449,29 @@ function getdataKmart () {
 					jml.dp += val.total.dp
 					jml.bv += val.total.bv
 				});
+
+				if(sort){
+					sort = JSON.parse(sort)
+					let fieldName = await Promise.all(sort.sortBy.map(val => {
+						const hasil = []
+						if(val == 'date' || val == 'records'){
+							hasil.push(`transaksi.${val}`)
+						}else if(val == 'dp' || val == 'bv'){
+							hasil.push(`total.${val}`)
+						}
+						return hasil[0]
+					}))
+					let order = await Promise.all(sort.sortDesc.map(val => {
+						const hasil = []	
+						if(val){
+							hasil.push(`desc`)
+						}else{
+							hasil.push(`asc`)
+						}
+						return hasil[0]
+					}))
+					return OK(res, { dataTransaksi: _.orderBy(dataTransaksi, fieldName, order), dataJumlah: jml });
+				}
 
 				return OK(res, { dataTransaksi: _.orderBy(dataTransaksi, 'transaksi.date', 'asc'), dataJumlah: jml });
 			}
@@ -1410,15 +1458,32 @@ function exportExcelConsumer () {
 
 function exportExcelTransaksiFix () {
   return async (req, res, next) => {
-		let { limit, totalPages } = req.query
-		let { id_userNorder_number, data_transaksi } = req.body
+		let { limit, totalPages, sort = '' } = req.query
+		let { data_transaksi } = req.body
     try {
 			let workbook = new excel.Workbook();
 			for (let index = 1; index <= Number(totalPages); index++) {
-				const arrayData = id_userNorder_number.slice((index - 1) * Number(limit), index * Number(limit))
-				const arrayData2 = data_transaksi.slice((index - 1) * Number(limit), index * Number(limit))
+				let arrayData = []
+				if(sort){
+					sort = JSON.parse(sort)
+					let fieldName = sort.sortBy.filter(str => str === 'orderNumber')
+					let indexField = sort.sortBy.indexOf('orderNumber')
+					let order = await Promise.all(sort.sortDesc.map(val => {
+						const hasil = []	
+						if(val){
+							hasil.push(`desc`)
+						}else{
+							hasil.push(`asc`)
+						}
+						return hasil[0]
+					}))
+					arrayData = _.orderBy(data_transaksi, fieldName, order[indexField])
+					arrayData = arrayData.slice((index - 1) * Number(limit), index * Number(limit))
+				}else{
+					arrayData = data_transaksi.slice((index - 1) * Number(limit), index * Number(limit))
+				}
 
-				let id_user = await Promise.all(arrayData.map(val => { return val.idUser }))
+				let id_user = await Promise.all(arrayData.map(val => { return val.id_user }))
 
 				const { data: response } = await request({
 					url: `${KMART_BASE_URL}users/consumers?uids=${id_user.join(',')}`,
@@ -1433,7 +1498,7 @@ function exportExcelTransaksiFix () {
 				let result = await Promise.all(record.map(async val => {
 					const { userBase, userDetail } = val;
 
-					const dataTransaksi = await arrayData2.filter(str => str.id_user === userDetail.idUser).map(val2 => {
+					const dataTransaksi = await arrayData.filter(str => str.id_user === userDetail.idUser).map(val2 => {
 						return {
 							...val2,
 							fullname: userDetail.fullname,
@@ -1442,7 +1507,7 @@ function exportExcelTransaksiFix () {
 							devicenumber: userBase.devicenumber,
 						}
 					})
-					return dataTransaksi.flat()
+					return dataTransaksi
 				}))
 
 				let kumpuldata = []
@@ -1460,6 +1525,25 @@ function exportExcelTransaksiFix () {
 					kumpuldata.push(emit)
 				})
 	
+				if(sort){
+					let fieldName = sort.sortBy.filter(str => str !== 'orderNumber')
+					let index = sort.sortBy.indexOf('orderNumber')
+					if(index>=0){
+						sort.sortDesc.splice(index,1)
+					}
+					let order = await Promise.all(sort.sortDesc.map(val => {
+						const hasil = []	
+						if(val){
+							hasil.push(`desc`)
+						}else{
+							hasil.push(`asc`)
+						}
+						return hasil
+					}))
+
+					kumpuldata = _.orderBy(kumpuldata, fieldName, order)
+				}
+
 				let worksheet = workbook.addWorksheet(`${Number(totalPages) > 1 ? `Data Transaksi - Page ${index}` : 'Data Transaksi'}`);
 				worksheet.columns = [
 					{ header: "Invoice", key: "orderNumber", width: 20 },
@@ -1495,15 +1579,31 @@ function exportExcelTransaksiFix () {
 
 function detailTransaksiOrder (models) {
   return async (req, res, next) => {
-		let { page, limit = 10 } = req.query
-		let { id_userNorder_number, data_transaksi } = req.body
-    try {
-			const totalPages = Math.ceil(id_userNorder_number.length / Number(limit))
+		let { page, limit = 10, sort = '' } = req.query
+		let { data_transaksi } = req.body
+    try {			
+			const totalPages = Math.ceil(data_transaksi.length / Number(limit))
 
-			const arrayData = id_userNorder_number.slice((Number(page) - 1) * Number(limit), Number(page) * Number(limit))
-			const arrayData2 = data_transaksi.slice((Number(page) - 1) * Number(limit), Number(page) * Number(limit))
+			let arrayData = []
+			if(sort){
+				sort = JSON.parse(sort)
+				let fieldName = sort.sortBy.filter(str => str === 'orderNumber')
+				let index = sort.sortBy.indexOf('orderNumber')
+				let order = await Promise.all(sort.sortDesc.map(val => {
+					const hasil = []	
+					if(val){
+						hasil.push(`desc`)
+					}else{
+						hasil.push(`asc`)
+					}
+					return hasil[0]
+				}))
+				arrayData = _.orderBy(data_transaksi, fieldName, order[index])
+			}else{
+				arrayData = data_transaksi
+			}
 
-			let id_user = await Promise.all(arrayData.map(val => { return val.idUser }))
+			let id_user = await Promise.all(arrayData.map(val => { return val.id_user }))
 
 			const { data: response } = await request({
 				url: `${KMART_BASE_URL}users/consumers?uids=${id_user.join(',')}`,
@@ -1518,7 +1618,7 @@ function detailTransaksiOrder (models) {
 			let result = await Promise.all(record.map(async val => {
 				const { userBase, userDetail } = val;
 
-				const dataTransaksi = await arrayData2.filter(str => str.id_user === userDetail.idUser).map(val2 => {
+				const dataTransaksi = await arrayData.filter(str => str.id_user === userDetail.idUser).map(val2 => {
 					return {
 						...val2,
 						fullname: userDetail.fullname,
@@ -1527,15 +1627,41 @@ function detailTransaksiOrder (models) {
 						devicenumber: userBase.devicenumber,
 					}
 				})
-				return dataTransaksi.flat()
+				return dataTransaksi
 			}))
+
+			if(sort){
+				let fieldName = sort.sortBy.filter(str => str !== 'orderNumber')
+				let index = sort.sortBy.indexOf('orderNumber')
+				if(index>=0){
+					sort.sortDesc.splice(index,1)
+				}
+				let order = await Promise.all(sort.sortDesc.map(val => {
+					const hasil = []	
+					if(val){
+						hasil.push(`desc`)
+					}else{
+						hasil.push(`asc`)
+					}
+					return hasil
+				}))
+				return OK(res, {
+					records: _.orderBy(result.flat(), fieldName, order),
+					pageSummary: {
+						page: Number(page),
+						limit: Number(limit),
+						total: result.flat().length,
+						totalPages,
+					}
+				});
+			}
 
 			return OK(res, {
 				records: result.flat(),
 				pageSummary: {
 					page: Number(page),
 					limit: Number(limit),
-					total: id_userNorder_number.length,
+					total: result.flat().length,
 					totalPages,
 				}
 			});
