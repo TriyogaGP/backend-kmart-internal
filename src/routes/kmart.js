@@ -28,6 +28,7 @@ const {
   exportExcelConsumer,
   exportExcelTransaksiFix,
   detailTransaksiOrder,
+  detailOrderProduct,
   testing,
   // ----- PLBBO ----- //
   getBiodata,
@@ -75,6 +76,7 @@ module.exports = models => {
   route.route('/exportExcelTransaksiFix').put(exportExcelTransaksiFix())
   route.route('/testing').get(testing(models))
   route.route('/detailTransaksiOrder').put(detailTransaksiOrder())
+  route.route('/detailOrderProduct').put(detailOrderProduct())
   // ----- PLBBO ----- //
   route.route('/getBiodata').get(getBiodata())
   // ----- PLBBO ----- //

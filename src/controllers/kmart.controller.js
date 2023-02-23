@@ -1671,6 +1671,67 @@ function detailTransaksiOrder (models) {
   }  
 }
 
+function detailOrderProduct (models) {
+  return async (req, res, next) => {
+		let { page, limit = 10, sort = '' } = req.query
+		let { data_transaksi } = req.body
+    try {
+			let ordernumber = await Promise.all(data_transaksi.map(val => { return val.orderNumber }))
+
+			const { data: response } = await request({
+				url: `${KMART_BASE_URL}admin/orders/get-order-product?orderID=${ordernumber.join(',')}`,
+				method: 'GET',
+				headers: {
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+				},
+			})
+
+			let record = response.data
+			if(sort){
+				let sorting = JSON.parse(sort)
+				let fieldName = sorting.sortBy
+				let order = await Promise.all(sorting.sortDesc.map(val => {
+					const hasil = []	
+					if(val){
+						hasil.push(`desc`)
+					}else{
+						hasil.push(`asc`)
+					}
+					return hasil[0]
+				}))
+				let arrayData = _.orderBy(record, fieldName, order)
+				const totalPages = Math.ceil(arrayData.length / Number(limit))
+				let result = arrayData.slice((page - 1) * Number(limit), page * Number(limit))
+				return OK(res, {
+					records: result,
+					pageSummary: {
+						page: Number(page),
+						limit: Number(limit),
+						total: arrayData.length,
+						totalPages,
+					}
+				});
+			}
+			
+			let arrayData = _.orderBy(record, ['quantity','productName'], ['desc','asc'])
+			const totalPages = Math.ceil(arrayData.length / Number(limit))
+			let result = arrayData.slice((page - 1) * Number(limit), page * Number(limit))
+			return OK(res, {
+				records: result,
+				pageSummary: {
+					page: Number(page),
+					limit: Number(limit),
+					total: arrayData.length,
+					totalPages,
+				}
+			});
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
 function testing (models) {
   return async (req, res, next) => {
 		// let { startdate, enddate, kode, kategoriProduct } = req.query
@@ -1813,6 +1874,7 @@ module.exports = {
   exportExcelConsumer,
   exportExcelTransaksiFix,
   detailTransaksiOrder,
+  detailOrderProduct,
   testing,
 	// ----- PLBBO ----- //
 	getBiodata,
