@@ -71,7 +71,6 @@ function getMenu (models) {
 			}
 
 			const whereKey = keyword ? {
-				kategori: kategori,
 				[Op.or]: [
 					{ menuText : { [Op.like]: `%${keyword}%` }},
 					{ menuRoute : { [Op.like]: `%${keyword}%` }},

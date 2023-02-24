@@ -1022,6 +1022,28 @@ function getDetailOrderUserActive (models) {
   }  
 }
 
+function getSurveyDNM () {
+  return async (req, res, next) => {
+		let { page, limit = 10, sort, dateRange, rating, keyword } = req.query
+    try {
+			const { data: response } = await request({
+				url: `${KMART_BASE_URL}admin/users/backofficers/user-quesioner?page=${page}&limit=${limit}${dateRange ? `&dateRange=${dateRange}` : ''}${keyword ? `&keyword=${keyword}` : ''}${rating ? `&rating=${rating}` : ''}&sort=${sort ? sort : 'createdAt-DESC'}`,
+				method: 'GET',
+				headers: {
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+				},
+			})
+
+			const { records, pageSummary } = response.data
+
+			return OK(res, { records, pageSummary });
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
 function reloadDashboardTransaksi (models) {
   return async (req, res, next) => {
 		let { tahun } = req.query
@@ -1336,7 +1358,7 @@ function exportExcel () {
 		let { startdate, enddate, limit, totalPages } = req.query
     try {
 			let workbook = new excel.Workbook();
-			for (let index = 1; index <= totalPages; index++) {
+			for (let index = 1; index <= Number(totalPages); index++) {
 				const { data: response } = await request({
 					url: `${KMART_BASE_URL}admin/orders/get-data-harian?dateRange=${startdate},${enddate}&page=${index}&limit=${limit}`,
 					method: 'GET',
@@ -1571,6 +1593,128 @@ function exportExcelTransaksiFix () {
 				res.status(200).end();
 			});
 			// return OK(res, kumpuldata)
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function exportExcelOrderProduct () {
+  return async (req, res, next) => {
+		let { limit, totalPages } = req.query
+		let { data_transaksi } = req.body
+    try {
+			let workbook = new excel.Workbook();
+			for (let index = 1; index <= Number(totalPages); index++) {
+				let ordernumber = await Promise.all(data_transaksi.map(val => { return val.orderNumber }))
+
+				const { data: response } = await request({
+					url: `${KMART_BASE_URL}admin/orders/get-order-product?orderID=${ordernumber.join(',')}`,
+					method: 'GET',
+					headers: {
+						// 'Authorization': `Bearer ${TOKEN}`,
+						'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+					},
+				})
+
+				let record = response.data
+				let arrayData = record.slice((index - 1) * Number(limit), index * Number(limit))
+				let result = _.orderBy(arrayData, ['quantity','productName'], ['desc','asc'])
+
+				// return OK(res, result)
+				let worksheet = workbook.addWorksheet(`${Number(totalPages) > 1 ? `Data Order Product - Page ${index}` : 'Data Order Product'}`);
+				worksheet.columns = [
+					{ header: "ID Product Sync", key: "idProductSync", width: 20 },
+					{ header: "Product Name", key: "productName", width: 70 },
+					{ header: "Quantity", key: "quantity", width: 15 },
+				];
+				const figureColumns = [1, 2, 3, 4, 5, 6, 7];
+				figureColumns.forEach((i) => {
+					worksheet.getColumn(i).alignment = { horizontal: "left" };
+				});
+				worksheet.addRows(result);
+				worksheet.state = 'visible';
+			}
+
+			res.setHeader(
+				"Content-Type",
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+			);
+		
+			return workbook.xlsx.write(res).then(function () {
+				res.status(200).end();
+			});
+			// return OK(res, kumpuldata)
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function exportExcelSurveyDNM () {
+  return async (req, res, next) => {
+		let { dateRange, rating, sort, limit, totalPages } = req.query
+    try {
+			let workbook = new excel.Workbook();
+			for (let index = 1; index <= Number(totalPages); index++) {
+				const { data: response } = await request({
+					url: `${KMART_BASE_URL}admin/users/backofficers/user-quesioner?page=${index}&limit=${limit}${dateRange ? `&dateRange=${dateRange}` : ''}${rating ? `&rating=${rating}` : ''}&sort=${sort ? sort : 'createdAt-DESC'}`,
+					method: 'GET',
+					headers: {
+						// 'Authorization': `Bearer ${TOKEN}`,
+						'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+					},
+				})
+	
+				let kumpuldata = []
+				const { records } = response.data
+				records.map(val => {
+					let sukai = val.dataQuesioner[1].jawaban
+					let emit = {
+						createdAt: convertDateTime2(val.createdAt),
+						idMember: val.idMember,
+						fullname: val.fullname,
+						email: val.email,
+						devicenumber: val.deviceNumber,
+						consumerType: val.consumerType,
+						rating: val.dataQuesioner[0].jawaban,
+						disukai: typeof sukai === 'object' ? _.join(sukai, '\n') : sukai,
+						rekomendasi: val.dataQuesioner[2].jawaban,
+						feedback: val.dataQuesioner[3].jawaban,
+					}
+					kumpuldata.push(emit)
+				})
+	
+				let worksheet = workbook.addWorksheet(`${Number(totalPages) > 1 ? `Data Survey - Page ${index}` : 'Data Survey'}`);
+				worksheet.columns = [
+					{ header: "Tanggal Survey", key: "createdAt", width: 20 },
+					{ header: "ID Member", key: "idMember", width: 20 },
+					{ header: "Nama", key: "fullname", width: 20 },
+					{ header: "Email", key: "email", width: 20 },
+					{ header: "No.Telpon", key: "devicenumber", width: 20 },
+					{ header: "Type Consumer", key: "consumerType", width: 20 },
+					{ header: "Rating (1-5)", key: "rating", width: 20 },
+					{ header: "Yang disukai dari DNM Mobile", key: "disukai", width: 60 },
+					{ header: "Merekomendasikan", key: "rekomendasi", width: 20 },
+					{ header: "Saran dan Masukan", key: "feedback", width: 60 },
+				];
+				const figureColumns = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+				figureColumns.forEach((i) => {
+					worksheet.getColumn(i).alignment = { vertical: 'top', horizontal: "left", wrapText: true };
+				});
+				worksheet.addRows(kumpuldata);
+				worksheet.state = 'visible';
+			}
+
+			res.setHeader(
+				"Content-Type",
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+			);
+		
+			return workbook.xlsx.write(res).then(function () {
+				res.status(200).end();
+			});
+			return OK(res, kumpuldata)
     } catch (err) {
 			return NOT_FOUND(res, err.message)
     }
@@ -1867,12 +2011,15 @@ module.exports = {
   getUserNotifikasi,
   getDetailUserActive,
   getDetailOrderUserActive,
+  getSurveyDNM,
   reloadDashboardTransaksi,
   reloadDashboardTransaksiDaily,
   reloadDashboardUserActive,
   exportExcel,
   exportExcelConsumer,
   exportExcelTransaksiFix,
+  exportExcelOrderProduct,
+  exportExcelSurveyDNM,
   detailTransaksiOrder,
   detailOrderProduct,
   testing,

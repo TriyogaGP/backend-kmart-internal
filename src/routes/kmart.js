@@ -21,12 +21,15 @@ const {
   getUserNotifikasi,
   getDetailUserActive,
   getDetailOrderUserActive,
+  getSurveyDNM,
   reloadDashboardTransaksi,
   reloadDashboardTransaksiDaily,
   reloadDashboardUserActive,
   exportExcel,
   exportExcelConsumer,
   exportExcelTransaksiFix,
+  exportExcelOrderProduct,
+  exportExcelSurveyDNM,
   detailTransaksiOrder,
   detailOrderProduct,
   testing,
@@ -65,6 +68,7 @@ module.exports = models => {
   route.route('/google/loader/UserInstall').post(uploadBerkas, updateUserInstall(models))
   route.route('/getDetailUserActive').get(getDetailUserActive(models))
   route.route('/getDetailOrderUserActive').get(getDetailOrderUserActive(models))
+  route.route('/getSurveyDNM').get(getSurveyDNM())
   route.route('/reloadDashboardTransaksi').get(reloadDashboardTransaksi(models))
   route.route('/reloadDashboardTransaksiDaily').get(reloadDashboardTransaksiDaily(models))
   route.route('/reloadDashboardUserActive').get(reloadDashboardUserActive(models))
@@ -74,6 +78,8 @@ module.exports = models => {
   route.route('/exportExcel').get(exportExcel())
   route.route('/exportExcelConsumer').get(exportExcelConsumer())
   route.route('/exportExcelTransaksiFix').put(exportExcelTransaksiFix())
+  route.route('/exportExcelOrderProduct').put(exportExcelOrderProduct())
+  route.route('/exportExcelSurveyDNM').get(exportExcelSurveyDNM())
   route.route('/testing').get(testing(models))
   route.route('/detailTransaksiOrder').put(detailTransaksiOrder())
   route.route('/detailOrderProduct').put(detailOrderProduct())
