@@ -303,9 +303,9 @@ function getdataKmart () {
 					dataTransaksi.push(val)
 				}))
 
-				if(sort){
-					sort = JSON.parse(sort)
-					let fieldName = await Promise.all(sort.sortBy.map(val => {
+				let sorting = JSON.parse(sort)
+				if(sorting.sortBy.length){
+					let fieldName = await Promise.all(sorting.sortBy.map(val => {
 						const hasil = []
 						if(val == 'date' || val == 'reff_no'){
 							hasil.push(`transaksi.${val}`)
@@ -316,7 +316,7 @@ function getdataKmart () {
 						}
 						return hasil[0]
 					}))
-					let order = await Promise.all(sort.sortDesc.map(val => {
+					let order = await Promise.all(sorting.sortDesc.map(val => {
 						const hasil = []	
 						if(val){
 							hasil.push(`desc`)
@@ -450,9 +450,9 @@ function getdataKmart () {
 					jml.bv += val.total.bv
 				});
 
-				if(sort){
-					sort = JSON.parse(sort)
-					let fieldName = await Promise.all(sort.sortBy.map(val => {
+				let sorting = JSON.parse(sort)
+				if(sorting.sortBy.length){
+					let fieldName = await Promise.all(sorting.sortBy.map(val => {
 						const hasil = []
 						if(val == 'date' || val == 'records'){
 							hasil.push(`transaksi.${val}`)
@@ -461,7 +461,7 @@ function getdataKmart () {
 						}
 						return hasil[0]
 					}))
-					let order = await Promise.all(sort.sortDesc.map(val => {
+					let order = await Promise.all(sorting.sortDesc.map(val => {
 						const hasil = []	
 						if(val){
 							hasil.push(`desc`)
@@ -1486,11 +1486,11 @@ function exportExcelTransaksiFix () {
 			let workbook = new excel.Workbook();
 			for (let index = 1; index <= Number(totalPages); index++) {
 				let arrayData = []
-				if(sort){
-					sort = JSON.parse(sort)
-					let fieldName = sort.sortBy.filter(str => str === 'orderNumber')
-					let indexField = sort.sortBy.indexOf('orderNumber')
-					let order = await Promise.all(sort.sortDesc.map(val => {
+				let sorting = JSON.parse(sort)
+				if(sorting.sortBy.length){
+					let fieldName = sorting.sortBy.filter(str => str === 'orderNumber')
+					let indexField = sorting.sortBy.indexOf('orderNumber')
+					let order = await Promise.all(sorting.sortDesc.map(val => {
 						const hasil = []	
 						if(val){
 							hasil.push(`desc`)
@@ -1547,13 +1547,13 @@ function exportExcelTransaksiFix () {
 					kumpuldata.push(emit)
 				})
 	
-				if(sort){
-					let fieldName = sort.sortBy.filter(str => str !== 'orderNumber')
-					let index = sort.sortBy.indexOf('orderNumber')
+				if(sorting.sortBy.length){
+					let fieldName = sorting.sortBy.filter(str => str !== 'orderNumber')
+					let index = sorting.sortBy.indexOf('orderNumber')
 					if(index>=0){
-						sort.sortDesc.splice(index,1)
+						sorting.sortDesc.splice(index,1)
 					}
-					let order = await Promise.all(sort.sortDesc.map(val => {
+					let order = await Promise.all(sorting.sortDesc.map(val => {
 						const hasil = []	
 						if(val){
 							hasil.push(`desc`)
@@ -1565,7 +1565,7 @@ function exportExcelTransaksiFix () {
 
 					kumpuldata = _.orderBy(kumpuldata, fieldName, order)
 				}
-
+				// return OK(res, kumpuldata)
 				let worksheet = workbook.addWorksheet(`${Number(totalPages) > 1 ? `Data Transaksi - Page ${index}` : 'Data Transaksi'}`);
 				worksheet.columns = [
 					{ header: "Invoice", key: "orderNumber", width: 20 },
@@ -1594,6 +1594,7 @@ function exportExcelTransaksiFix () {
 			});
 			// return OK(res, kumpuldata)
     } catch (err) {
+			console.log(err);
 			return NOT_FOUND(res, err.message)
     }
   }  
@@ -1602,23 +1603,11 @@ function exportExcelTransaksiFix () {
 function exportExcelOrderProduct () {
   return async (req, res, next) => {
 		let { limit, totalPages } = req.query
-		let { data_transaksi } = req.body
+		let { data_product } = req.body
     try {
 			let workbook = new excel.Workbook();
 			for (let index = 1; index <= Number(totalPages); index++) {
-				let ordernumber = await Promise.all(data_transaksi.map(val => { return val.orderNumber }))
-
-				const { data: response } = await request({
-					url: `${KMART_BASE_URL}admin/orders/get-order-product?orderID=${ordernumber.join(',')}`,
-					method: 'GET',
-					headers: {
-						// 'Authorization': `Bearer ${TOKEN}`,
-						'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
-					},
-				})
-
-				let record = response.data
-				let arrayData = record.slice((index - 1) * Number(limit), index * Number(limit))
+				let arrayData = data_product.slice((index - 1) * Number(limit), index * Number(limit))
 				let result = _.orderBy(arrayData, ['quantity','productName'], ['desc','asc'])
 
 				// return OK(res, result)
@@ -1714,7 +1703,7 @@ function exportExcelSurveyDNM () {
 			return workbook.xlsx.write(res).then(function () {
 				res.status(200).end();
 			});
-			return OK(res, kumpuldata)
+			// return OK(res, kumpuldata)
     } catch (err) {
 			return NOT_FOUND(res, err.message)
     }
@@ -1729,11 +1718,11 @@ function detailTransaksiOrder (models) {
 			const totalPages = Math.ceil(data_transaksi.length / Number(limit))
 
 			let arrayData = []
-			if(sort){
-				sort = JSON.parse(sort)
-				let fieldName = sort.sortBy.filter(str => str === 'orderNumber')
-				let index = sort.sortBy.indexOf('orderNumber')
-				let order = await Promise.all(sort.sortDesc.map(val => {
+			let sorting = JSON.parse(sort)
+			if(sorting.sortBy.length){
+				let fieldName = sorting.sortBy.filter(str => str === 'orderNumber')
+				let index = sorting.sortBy.indexOf('orderNumber')
+				let order = await Promise.all(sorting.sortDesc.map(val => {
 					const hasil = []	
 					if(val){
 						hasil.push(`desc`)
@@ -1774,13 +1763,13 @@ function detailTransaksiOrder (models) {
 				return dataTransaksi
 			}))
 
-			if(sort){
-				let fieldName = sort.sortBy.filter(str => str !== 'orderNumber')
-				let index = sort.sortBy.indexOf('orderNumber')
+			if(sorting.sortBy.length){
+				let fieldName = sorting.sortBy.filter(str => str !== 'orderNumber')
+				let index = sorting.sortBy.indexOf('orderNumber')
 				if(index>=0){
-					sort.sortDesc.splice(index,1)
+					sorting.sortDesc.splice(index,1)
 				}
-				let order = await Promise.all(sort.sortDesc.map(val => {
+				let order = await Promise.all(sorting.sortDesc.map(val => {
 					const hasil = []	
 					if(val){
 						hasil.push(`desc`)
@@ -1820,10 +1809,10 @@ function detailOrderProduct (models) {
 		let { page, limit = 10, sort = '' } = req.query
 		let { data_transaksi } = req.body
     try {
-			let ordernumber = await Promise.all(data_transaksi.map(val => { return val.orderNumber }))
+			// let ordernumber = await Promise.all(data_transaksi.map(val => { return val.orderNumber }))
 
 			const { data: response } = await request({
-				url: `${KMART_BASE_URL}admin/orders/get-order-product?orderID=${ordernumber.join(',')}`,
+				url: `${KMART_BASE_URL}admin/orders/get-order-product?orderID=${data_transaksi.join(',')}`,
 				method: 'GET',
 				headers: {
 					// 'Authorization': `Bearer ${TOKEN}`,
