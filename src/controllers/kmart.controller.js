@@ -1484,104 +1484,135 @@ function exportExcelTransaksiFix () {
 		let { data_transaksi } = req.body
     try {
 			let workbook = new excel.Workbook();
-			for (let index = 1; index <= Number(totalPages); index++) {
-				let arrayData = []
-				let sorting = JSON.parse(sort)
-				if(sorting.sortBy.length){
-					let fieldName = sorting.sortBy.filter(str => str === 'orderNumber')
-					let indexField = sorting.sortBy.indexOf('orderNumber')
-					let order = await Promise.all(sorting.sortDesc.map(val => {
-						const hasil = []	
-						if(val){
-							hasil.push(`desc`)
-						}else{
-							hasil.push(`asc`)
-						}
-						return hasil[0]
-					}))
-					arrayData = _.orderBy(data_transaksi, fieldName, order[indexField])
-					arrayData = arrayData.slice((index - 1) * Number(limit), index * Number(limit))
-				}else{
-					arrayData = data_transaksi.slice((index - 1) * Number(limit), index * Number(limit))
-				}
+			let totalseluruhnya = []
+			for (let index = 1; index <= Number(totalPages)+1; index++) {
+				if(index > Number(totalPages)){
+					let worksheet = workbook.addWorksheet("Total Transaksi");
+					worksheet.columns = [
+						{ header: "Halaman", key: "page", width: 20 },
+						{ header: "DP", key: "dp", width: 20 },
+						{ header: "BV", key: "bv", width: 20 },
+					];
+					const figureColumns = [1, 2, 3];
+					figureColumns.forEach((i) => {
+						worksheet.getColumn(i).alignment = { horizontal: "left" };
+					});
+					worksheet.addRows(totalseluruhnya);
+					worksheet.state = 'visible';
+				} else {
+					let arrayData = []
+					let sorting = JSON.parse(sort)
+					if(sorting.sortBy.length){
+						let fieldName = sorting.sortBy.filter(str => str === 'orderNumber')
+						let indexField = sorting.sortBy.indexOf('orderNumber')
+						let order = await Promise.all(sorting.sortDesc.map(val => {
+							const hasil = []	
+							if(val){
+								hasil.push(`desc`)
+							}else{
+								hasil.push(`asc`)
+							}
+							return hasil[0]
+						}))
+						arrayData = _.orderBy(data_transaksi, fieldName, order[indexField])
+						arrayData = arrayData.slice((index - 1) * Number(limit), index * Number(limit))
+					}else{
+						arrayData = data_transaksi.slice((index - 1) * Number(limit), index * Number(limit))
+					}
 
-				let id_user = await Promise.all(arrayData.map(val => { return val.id_user }))
+					let id_user = await Promise.all(arrayData.map(val => { return val.id_user }))
 
-				const { data: response } = await request({
-					url: `${KMART_BASE_URL}users/consumers?uids=${id_user.join(',')}`,
-					method: 'GET',
-					headers: {
-						// 'Authorization': `Bearer ${TOKEN}`,
-						'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
-					},
-				})
-
-				let record = response.data
-				let result = await Promise.all(record.map(async val => {
-					const { userBase, userDetail } = val;
-
-					const dataTransaksi = await arrayData.filter(str => str.id_user === userDetail.idUser).map(val2 => {
-						return {
-							...val2,
-							fullname: userDetail.fullname,
-							consumerType: userDetail.consumerType,
-							email: userBase.email,
-							devicenumber: userBase.devicenumber,
-						}
+					const { data: response } = await request({
+						url: `${KMART_BASE_URL}users/consumers?uids=${id_user.join(',')}`,
+						method: 'GET',
+						headers: {
+							// 'Authorization': `Bearer ${TOKEN}`,
+							'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+						},
 					})
-					return dataTransaksi
-				}))
 
-				let kumpuldata = []
-				const records = result.flat()
-				records.map(val => {
-					let emit = {
-						orderNumber: val.orderNumber,
-						date: dateconvert(val.date),
-						fullname: val.fullname,
-						devicenumber: val.devicenumber,
-						email: val.email,
-						dp: val.dp,
-						bv: val.bv,
-					}
-					kumpuldata.push(emit)
-				})
-	
-				if(sorting.sortBy.length){
-					let fieldName = sorting.sortBy.filter(str => str !== 'orderNumber')
-					let index = sorting.sortBy.indexOf('orderNumber')
-					if(index>=0){
-						sorting.sortDesc.splice(index,1)
-					}
-					let order = await Promise.all(sorting.sortDesc.map(val => {
-						const hasil = []	
-						if(val){
-							hasil.push(`desc`)
-						}else{
-							hasil.push(`asc`)
-						}
-						return hasil
+					let record = response.data
+					let result = await Promise.all(record.map(async val => {
+						const { userBase, userDetail } = val;
+
+						const dataTransaksi = await arrayData.filter(str => str.id_user === userDetail.idUser).map(val2 => {
+							return {
+								...val2,
+								fullname: userDetail.fullname,
+								consumerType: userDetail.consumerType,
+								email: userBase.email,
+								devicenumber: userBase.devicenumber,
+							}
+						})
+						return dataTransaksi
 					}))
 
-					kumpuldata = _.orderBy(kumpuldata, fieldName, order)
+					let kumpuldata = []
+					const records = result.flat()
+					records.map(val => {
+						let emit = {
+							orderNumber: val.orderNumber,
+							date: dateconvert(val.date),
+							fullname: val.fullname,
+							devicenumber: val.devicenumber,
+							email: val.email,
+							dp: val.dp,
+							bv: val.bv,
+						}
+						kumpuldata.push(emit)
+					})
+		
+					if(sorting.sortBy.length){
+						let fieldName = sorting.sortBy.filter(str => str !== 'orderNumber')
+						let index = sorting.sortBy.indexOf('orderNumber')
+						if(index>=0){
+							sorting.sortDesc.splice(index,1)
+						}
+						let order = await Promise.all(sorting.sortDesc.map(val => {
+							const hasil = []	
+							if(val){
+								hasil.push(`desc`)
+							}else{
+								hasil.push(`asc`)
+							}
+							return hasil
+						}))
+
+						kumpuldata = _.orderBy(kumpuldata, fieldName, order)
+					}
+
+					let jml = {
+						dp: 0,
+						bv: 0,
+					}
+					await Promise.all(kumpuldata.map(async str => {
+						jml.dp += str.dp
+						jml.bv += str.bv
+					}))
+					totalseluruhnya.push({
+						page: index,
+						dp: jml.dp,
+						bv: jml.bv,
+					})
+
+					let worksheet = workbook.addWorksheet(`${Number(totalPages) > 1 ? `Data Transaksi - Page ${index}` : 'Data Transaksi'}`);
+					worksheet.columns = [
+						{ header: "Invoice", key: "orderNumber", width: 20 },
+						{ header: "Tanggal Order", key: "date", width: 20 },
+						{ header: "Nama", key: "fullname", width: 50 },
+						{ header: "No. Telepon", key: "devicenumber", width: 20 },
+						{ header: "Email", key: "email", width: 25 },
+						{ header: "DP", key: "dp", width: 25 },
+						{ header: "BV", key: "bv", width: 25 },
+					];
+					const figureColumns = [1, 2, 3, 4, 5, 6, 7];
+					figureColumns.forEach((i) => {
+						worksheet.getColumn(i).alignment = { horizontal: "left" };
+					});
+					worksheet.addRows(kumpuldata);
+					worksheet.state = 'visible';
 				}
 				// return OK(res, kumpuldata)
-				let worksheet = workbook.addWorksheet(`${Number(totalPages) > 1 ? `Data Transaksi - Page ${index}` : 'Data Transaksi'}`);
-				worksheet.columns = [
-					{ header: "Invoice", key: "orderNumber", width: 20 },
-					{ header: "Tanggal Order", key: "date", width: 20 },
-					{ header: "Nama", key: "fullname", width: 50 },
-					{ header: "No. Telepon", key: "devicenumber", width: 20 },
-					{ header: "Email", key: "email", width: 25 },
-					{ header: "DP", key: "dp", width: 25 },
-					{ header: "BV", key: "bv", width: 25 },
-				];
-				const figureColumns = [1, 2, 3, 4, 5, 6, 7];
-				figureColumns.forEach((i) => {
-					worksheet.getColumn(i).alignment = { horizontal: "left" };
-				});
-				worksheet.addRows(kumpuldata);
-				worksheet.state = 'visible';
 			}
 
 			res.setHeader(

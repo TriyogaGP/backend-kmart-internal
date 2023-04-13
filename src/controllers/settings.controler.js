@@ -50,6 +50,7 @@ function getMenu (models) {
   return async (req, res, next) => {
 		let { pilihan, kategori, page = 1, limit = 10, keyword } = req.query
 		let where = {}
+		let order = []
     try {
 			const OFFSET = page > 0 ? (page - 1) * parseInt(limit) : undefined
 			order = [
@@ -255,6 +256,27 @@ function crudRole (models) {
   }  
 }
 
+function getSequenceMenu (models) {
+  return async (req, res, next) => {
+    try {
+
+      const dataMenu = await models.Menu.findAll({
+				order: [
+					['kategori', 'DESC'],
+					['menuSequence', 'ASC']
+				],
+			});
+
+			return OK(res, {
+				Utama: dataMenu.filter(str => { return str.kategori === 'utama' }),
+				DNM: dataMenu.filter(str => { return str.kategori === 'dnm' })
+			});
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
 function crudSequenceMenu (models) {
   return async (req, res, next) => {
 		let body = { ...req.body }
@@ -394,6 +416,7 @@ module.exports = {
   getDecrypt,
   getMenu,
   crudMenu,
+  getSequenceMenu,
   crudSequenceMenu,
   getRole,
   crudRole,
