@@ -107,16 +107,21 @@ function getdataOrder () {
 
 function getProductOrderSummary () {
   return async (req, res, next) => {
-		let { idProductName, startdate, enddate, payment, shippingType } = req.query
+		let { startdate, enddate, payment, shippingType } = req.query
+		let { idProductSync } = req.body
     try {
+			// return OK(res, idProductSync);
 			var url = ''
 			if(startdate && enddate){ url += `dateRange=${startdate},${enddate}&` }
-			if(idProductName){ url += `idProductName=${idProductName}&` }
+			// if(idProductName){ url += `idProductName=${idProductName}&` }
 			if(payment){ url += `payment=${payment}&` }
 			if(shippingType){ url += `shippingType=${shippingType}&`}
 			const { data: response } = await request({
 				url: `${KMART_BASE_URL}admin/orders/get-summary-order?${url}`,
-				method: 'GET',
+				method: 'PUT',
+				data: {
+					idProductSync
+				},
 				headers: {
 					// 'Authorization': `Bearer ${TOKEN}`,
 					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
@@ -1741,6 +1746,72 @@ function exportExcelSurveyDNM () {
   }  
 }
 
+function exportExcelOrderProductSummary () {
+  return async (req, res, next) => {
+		let { startdate, enddate, payment, shippingType } = req.query
+		let { idProductSync } = req.body
+    try {
+			let workbook = new excel.Workbook();
+			var url = ''
+			if(startdate && enddate){ url += `dateRange=${startdate},${enddate}&` }
+			if(payment){ url += `payment=${payment}&` }
+			if(shippingType){ url += `shippingType=${shippingType}&`}
+			const { data: response } = await request({
+				url: `${KMART_BASE_URL}admin/orders/get-summary-order?${url}`,
+				method: 'PUT',
+				data: {
+					idProductSync
+				},
+				headers: {
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+				},
+			})
+			let kumpuldata = []
+			const { listData } = response.data
+			listData.map(val => {
+				let emit = {
+					idProductSync: val.idProductSync,
+					productName: val.productName,
+					priceMember: val.priceMember,
+					priceNonMember: val.priceNonMember,
+					quantity: val.quantity,
+					totalPrice: val.totalPrice,
+				}
+				kumpuldata.push(emit)
+			})
+
+			let worksheet = workbook.addWorksheet("Data Order Product Summary");
+			worksheet.columns = [
+				{ header: "ID Product Sync", key: "idProductSync", width: 20 },
+				{ header: "Product Name", key: "productName", width: 40 },
+				{ header: "Price Member", key: "priceMember", width: 20 },
+				{ header: "Price Non Member", key: "priceNonMember", width: 20 },
+				{ header: "Quantity", key: "quantity", width: 20 },
+				{ header: "Total Price", key: "totalPrice", width: 20 },
+			];
+			const figureColumns = [1, 2, 3, 4, 5, 6];
+			figureColumns.forEach((i) => {
+				worksheet.getColumn(i).alignment = { vertical: 'top', horizontal: "left", wrapText: true };
+			});
+			worksheet.addRows(kumpuldata);
+			worksheet.state = 'visible';
+
+			res.setHeader(
+				"Content-Type",
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+			);
+		
+			return workbook.xlsx.write(res).then(function () {
+				res.status(200).end();
+			});
+			return OK(res, kumpuldata)
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
 function detailTransaksiOrder (models) {
   return async (req, res, next) => {
 		let { page, limit = 10, sort = '' } = req.query
@@ -2040,6 +2111,7 @@ module.exports = {
   exportExcelTransaksiFix,
   exportExcelOrderProduct,
   exportExcelSurveyDNM,
+  exportExcelOrderProductSummary,
   detailTransaksiOrder,
   detailOrderProduct,
   testing,

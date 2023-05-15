@@ -30,6 +30,7 @@ const {
   exportExcelTransaksiFix,
   exportExcelOrderProduct,
   exportExcelSurveyDNM,
+  exportExcelOrderProductSummary,
   detailTransaksiOrder,
   detailOrderProduct,
   testing,
@@ -54,7 +55,7 @@ module.exports = models => {
   route.route('/hitManualKMart').post(verifyToken, hitManualKMart())
   route.route('/getdataHarian').get(verifyToken, getdataHarian())
   route.route('/getdataOrder').get(verifyToken, getdataOrder())
-  route.route('/getdataProductOrderSummary').get(verifyToken, getProductOrderSummary())
+  route.route('/getdataProductOrderSummary').put(verifyToken, getProductOrderSummary())
   route.route('/getdataVariantProduct').get(verifyToken, getProductVariant())
   route.route('/getdataNonCod').get(verifyToken, getdataNonCod())
   route.route('/getdataConsumer').get(verifyToken, getdataConsumer())
@@ -80,6 +81,7 @@ module.exports = models => {
   route.route('/exportExcelTransaksiFix').put(exportExcelTransaksiFix())
   route.route('/exportExcelOrderProduct').put(exportExcelOrderProduct())
   route.route('/exportExcelSurveyDNM').get(exportExcelSurveyDNM())
+  route.route('/exportExcelOrderProductSummary').put(exportExcelOrderProductSummary())
   route.route('/testing').get(testing(models))
   route.route('/detailTransaksiOrder').put(detailTransaksiOrder())
   route.route('/detailOrderProduct').put(detailOrderProduct())
