@@ -232,6 +232,24 @@ function hitUpdateStatus () {
   }  
 }
 
+function hitCartEmpty () {
+  return async (req, res, next) => {
+    try {
+			await request({
+				url: `${KMART_BASE_URL}admin/orders/get-cart-orders?view=0`,
+				method: 'GET',
+				headers: {
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+				},
+			})
+			return OK(res);
+		} catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
 function getdataKmart () {
   return async (req, res, next) => {
 		let { startdate, enddate, kode, kategoriProduct, Provinsi, sort = '' } = req.query
@@ -2088,6 +2106,7 @@ module.exports = {
   getProductVariant,
   getdataNonCod,
   hitUpdateStatus,
+  hitCartEmpty,
   getdataKmart,
   getDashboardTransaksi,
   getDashboardTransaksiDaily,

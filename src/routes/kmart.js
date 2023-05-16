@@ -7,6 +7,7 @@ const {
   getProductVariant,
   getdataNonCod,
   hitUpdateStatus,
+  hitCartEmpty,
   getdataKmart,
   getDashboardTransaksi,
   getDashboardTransaksiDaily,
@@ -63,6 +64,7 @@ module.exports = models => {
   route.route('/getdataOrderConsumer').get(verifyToken, getOrderUser())
   route.route('/getTransaksiDetail').get(verifyToken, getTransaksiDetail())
   route.route('/hitUpdateStatus').get(verifyToken, hitUpdateStatus())
+  route.route('/hitCartEmpty').get(verifyToken, hitCartEmpty())
   route.route('/getdataKmart').get(verifyToken, getdataKmart())
   route.route('/getUserGoogle').get(verifyToken, getUserGoogle(models))
   route.route('/google/loader/UserAcquisition').post(uploadBerkas, updateUserAcquisition(models))
