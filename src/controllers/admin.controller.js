@@ -143,7 +143,82 @@ function crudAdmin (models) {
   }  
 }
 
+function getBeritaAcara (models) {
+  return async (req, res, next) => {
+		let { sort, page = 1, limit = 10, keyword } = req.query
+    let where = {}
+		let order = []
+    try {
+			const OFFSET = page > 0 ? (page - 1) * parseInt(limit) : undefined
+			order = [
+				['createdAt', sort ? sort : 'DESC'],
+			]
+
+			const whereKey = keyword ? {
+				orderNumber : { [Op.like]: `%${keyword}%` }
+			} : {}
+
+			where = whereKey
+
+      const { count, rows: dataBeritaAcara } = await models.BeritaAcara.findAndCountAll({
+				where,
+				order,
+				limit: parseInt(limit),
+				offset: OFFSET,
+			});
+
+			const responseData = buildMysqlResponseWithPagination(
+				dataBeritaAcara,
+				{ limit, page, total: count }
+			)
+
+			return OK(res, responseData);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function crudBeritaAcara (models) {
+  return async (req, res, next) => {
+		let body = { ...req.body }
+		let where = {}
+    try {
+			let kirimdata;
+			if(body.jenis == 'ADD'){
+				where = { orderNumber: body.order_number }
+				const {count, rows} = await models.BeritaAcara.findAndCountAll({where});
+				if(count) return NOT_FOUND(res, 'data sudah di gunakan !')
+				kirimdata = {
+					orderNumber: body.order_number,
+					penjelasan: body.penjelasan,
+					requestBy: body.request_by,
+					createBy: body.create_update_by,
+				}
+				await models.BeritaAcara.create(kirimdata)
+			}else if(body.jenis == 'EDIT'){
+				if(await models.BeritaAcara.findOne({where: {orderNumber: body.order_number, [Op.not]: [{idBeritaAcara: body.id_berita_acara}]}})) return NOT_FOUND(res, 'order number sudah di gunakan !')
+				kirimdata = {
+					orderNumber: body.order_number,
+					penjelasan: body.penjelasan,
+					requestBy: body.request_by,
+					updateBy: body.create_update_by,
+				}
+				await models.BeritaAcara.update(kirimdata, { where: { idBeritaAcara: body.id_berita_acara } })
+			}else{
+				return NOT_FOUND(res, 'terjadi kesalahan pada sistem !')
+			}
+
+			return OK(res);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
 module.exports = {
   getAdmin,
   crudAdmin,
+  getBeritaAcara,
+  crudBeritaAcara,
 }
