@@ -29,6 +29,10 @@ try {
   
   // const corsOptions = { origin: "http://localhost:3000" };
   // app.use(cors(corsOptions));
+  // view engine setup
+  app.set('views', path.join(__dirname, 'views'));
+  app.set('view engine', 'ejs');
+  
   app.use(cors({credentials:true, origin:'*'}));
   app.options("*", cors());
   // parse requests of content-type - application/json

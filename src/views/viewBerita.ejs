@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Berita Acara</title>
+	<link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" />
+</head>
+<body>
+	<style>
+		.Kepala{
+			text-align: center; 
+			font-weight: bold; 
+			font-size: 25px; 
+			vertical-align: top;
+			height: 10px;
+			text-decoration: underline;
+			margin-bottom: 50px;
+		}
+		.judul{
+			font-weight: bold; 
+			font-size: 15px; 
+			text-align: left;
+		}
+		.isi{ 
+			font-size: 15px; 
+			text-align: left;
+			padding-bottom: 20px;
+			text-align: justify;
+		}
+	</style>
+	<div class="container">
+		<p class="Kepala">BERITA ACARA</p>
+		<table width="100%" border="0" cellspacing="1" cellpadding="1"> 
+			<tr>
+				<td class="judul">Order Number</td>
+			</tr>
+			<tr>
+				<td class="isi"><%= dataBeritaAcara.orderNumber %></td>
+			</tr>
+			<tr>
+				<td class="judul">Tanggal Request</td>
+			</tr>
+			<tr>
+				<td class="isi"><%= dataBeritaAcara.createdAt %></td>
+			</tr>
+			<tr>
+				<td class="judul">Request By</td>
+			</tr>
+			<tr>
+				<td class="isi"><%= dataBeritaAcara.requestBy %></td>
+			</tr>
+			<tr>
+				<td class="judul">Penjelasan</td>
+			</tr>
+			<tr>
+				<td class="isi"><%= dataBeritaAcara.penjelasan %></td>
+			</tr>
+		</table>
+		<table border="0" width="100%" cellspacing="0" cellpadding="0">
+			<tr>
+				<td>&nbsp;</td>
+				<td width="30%" style="text-align: center; vertical-align: middle;">
+					<img
+						src="<%= dataBeritaAcara.url %>bahan/logo.png"
+						alt="DNM MOBILE"
+						width="100px"
+						height="100px"
+						style="display: inline-block;"
+					/>
+					<p class="judul" style="text-align: center;">DNM MOBILE</p>
+				</td>
+			</tr>
+		</table>
+	</div>
+</body>
+</html>

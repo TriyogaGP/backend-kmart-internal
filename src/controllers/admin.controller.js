@@ -1,10 +1,13 @@
 const { response, OK, NOT_FOUND, NO_CONTENT } = require('../utils/response.utils');
-const { encrypt, decrypt, buildMysqlResponseWithPagination } = require('../utils/helper.utils');
+const { encrypt, decrypt, buildMysqlResponseWithPagination, convertDateTime } = require('../utils/helper.utils');
 const { Op } = require('sequelize')
 const sequelize = require('sequelize')
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const _ = require('lodash');
+const ejs = require("ejs");
+const pdf = require("html-pdf");
+const path = require("path");
 const { logger } = require('../configs/db.winston')
 const nodeGeocoder = require('node-geocoder');
 const dotenv = require('dotenv');
@@ -216,9 +219,64 @@ function crudBeritaAcara (models) {
   }  
 }
 
+function pdfCreate (models) {
+	return async (req, res, next) => {
+		let { idBeritaAcara } = req.params
+		try {			
+			const dataBeritaAcara = await models.BeritaAcara.findOne({
+				where: { idBeritaAcara },
+			});
+
+			const hasil = {
+				url: BASE_URL,
+				idBeritaAcara: dataBeritaAcara.idBeritaAcara,
+				orderNumber: dataBeritaAcara.orderNumber,
+				penjelasan: dataBeritaAcara.penjelasan,
+				requestBy: dataBeritaAcara.requestBy,
+				createdAt: convertDateTime(dataBeritaAcara.createdAt),
+			}
+			// return OK(res, hasil)
+			ejs.renderFile(path.join(__dirname, "../../src/views/viewBerita.ejs"), { dataBeritaAcara: hasil }, (err, data) => {
+				if (err) {
+					console.log(err);
+				} else {
+					// console.log(data)
+					let options = {
+						format: "A4",
+						orientation: "portrait",
+						quality: "10000",
+						border: {
+							top: "2cm",
+							right: "2cm",
+							bottom: "2cm",
+							left: "2cm"
+						},
+						// header: {
+						// 	height: "12mm",
+						// },
+						// footer: {
+						// 	height: "15mm",
+						// },
+						httpHeaders: {
+							"Content-type": "application/pdf",
+						},
+						type: "pdf",
+					};
+					pdf.create(data, options).toStream(function(err, stream){
+						stream.pipe(res);
+					});
+				}
+			});
+		} catch (err) {
+			return NOT_FOUND(res, err.message)
+		}
+	}
+}
+
 module.exports = {
   getAdmin,
   crudAdmin,
   getBeritaAcara,
   crudBeritaAcara,
+  pdfCreate,
 }

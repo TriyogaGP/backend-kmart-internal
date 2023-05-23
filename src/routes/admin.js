@@ -5,6 +5,7 @@ const {
   crudAdmin,
   getBeritaAcara,
   crudBeritaAcara,
+  pdfCreate,
 } = require('../controllers/admin.controller')
 
 module.exports = models => {
@@ -16,6 +17,8 @@ module.exports = models => {
   route.route('/BeritaAcara')
     .get(getBeritaAcara(models))
     .post(crudBeritaAcara(models))
+  route.route('/PDF/:idBeritaAcara')
+    .get(pdfCreate(models))
   
   return route;
 }
