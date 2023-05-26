@@ -215,11 +215,15 @@ function getdataNonCod () {
 
 function hitUpdateStatus () {
   return async (req, res, next) => {
-		let { idOrder, status, remarks } = req.query
+		let { status, remarks } = req.query
+		let { idOrder } = req.body
     try {
 			const { data: response } = await request({
-				url: `${KMART_BASE_URL}admin/orders/update-status-noncod?orderId=${idOrder}&status=${status}&remarks=${remarks}`,
-				method: 'GET',
+				url: `${KMART_BASE_URL}admin/orders/update-status-noncod?status=${status}&remarks=${remarks}`,
+				method: 'PUT',
+				data: {
+					orderId: idOrder
+				},
 				headers: {
 					// 'Authorization': `Bearer ${TOKEN}`,
 					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
@@ -913,14 +917,14 @@ function getTransaksiDetail (models) {
 
 function blastNotifikasi (models) {
   return async (req, res, next) => {
-		let { id_user } = req.query
-		let { payload } = req.body
+		let { id_user, payload } = req.body
     try {
-			if(!id_user) { return NOT_FOUND(res, 'ID User harap diisi !'); }
+			if(!id_user.length) { return NOT_FOUND(res, 'ID User harap diisi !'); }
 			const { data: response } = await request({
-				url: `${KMART_BASE_URL}admin/orders/blast-notif?id_user=${id_user}`,
+				url: `${KMART_BASE_URL}admin/orders/blast-notif`,
 				method: 'PUT',
 				data: {
+					id_user,
 					payload: {
 						title: payload.title,
 						body: payload.body,

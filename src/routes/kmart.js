@@ -63,7 +63,7 @@ module.exports = models => {
   route.route('/getdataTopicConsumer').get(verifyToken, getTopicUser())
   route.route('/getdataOrderConsumer').get(verifyToken, getOrderUser())
   route.route('/getTransaksiDetail').get(verifyToken, getTransaksiDetail())
-  route.route('/hitUpdateStatus').get(verifyToken, hitUpdateStatus())
+  route.route('/hitUpdateStatus').put(verifyToken, hitUpdateStatus())
   route.route('/hitCartEmpty').get(verifyToken, hitCartEmpty())
   route.route('/getdataKmart').get(verifyToken, getdataKmart())
   route.route('/getUserGoogle').get(verifyToken, getUserGoogle(models))
