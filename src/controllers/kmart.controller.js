@@ -81,10 +81,10 @@ function getdataOrder () {
     try {
 			let data, drop, hasil, url
 			if(inv){
-				data = _.split(inv, 'INV-').reverse()
+				data = _.split(inv, 'INV').reverse()
 				drop = _.dropRight(data)
 				hasil = drop.map(val => {
-					let kumpul = `INV-${val}`
+					let kumpul = `INV${val}`
 					return kumpul
 				})
 				url = `&inv=${_.join(hasil, ',')}`
@@ -152,10 +152,10 @@ function getProductVariant () {
 				return OK(res, response.data);
 			}
 			if(kondisi == 2){
-				let data = _.split(inv, 'INV-').reverse()
+				let data = _.split(inv, 'INV').reverse()
 				let drop = _.dropRight(data)
 				let hasil = drop.map(val => {
-					let kumpul = `INV-${val}`
+					let kumpul = `INV${val}`
 					return kumpul
 				})
 				const { data: response } = await request({
@@ -191,10 +191,10 @@ function getdataNonCod () {
   return async (req, res, next) => {
 		let { inv } = req.query
     try {
-			let data = _.split(inv, 'INV-').reverse()
+			let data = _.split(inv, 'INV').reverse()
 			let drop = _.dropRight(data)
 			let hasil = drop.map(val => {
-				let kumpul = `INV-${val}`
+				let kumpul = `INV${val}`
 				return kumpul
 			})
 			const { data: response } = await request({
@@ -811,6 +811,42 @@ function getDashboardProduct (models) {
 			}
 			const { data: response } = await request({
 				url: `${KMART_BASE_URL}admin/products/product-es?${url}`,
+				method: 'GET',
+				headers: {
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+				},
+			})
+			return OK(res, response.data);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function getDashboardShipping () {
+  return async (req, res, next) => {
+		try {
+			const { data: response } = await request({
+				url: `${KMART_BASE_URL}admin/orders/get-shipping-type`,
+				method: 'GET',
+				headers: {
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+				},
+			})
+			return OK(res, response.data);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
+function getDashboardCourier () {
+  return async (req, res, next) => {
+		try {
+			const { data: response } = await request({
+				url: `${KMART_BASE_URL}admin/orders/get-order-courier`,
 				method: 'GET',
 				headers: {
 					// 'Authorization': `Bearer ${TOKEN}`,
@@ -2116,6 +2152,8 @@ module.exports = {
   getDashboardTransaksiDaily,
   getDashboardUserActive,
   getDashboardProduct,
+  getDashboardShipping,
+  getDashboardCourier,
   getdataConsumer,
   getTopicUser,
   getOrderUser,

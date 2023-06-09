@@ -13,6 +13,8 @@ const {
   getDashboardTransaksiDaily,
   getDashboardUserActive,
   getDashboardProduct,
+  getDashboardShipping,
+  getDashboardCourier,
   getdataConsumer,
   getTopicUser,
   getOrderUser,
@@ -53,6 +55,8 @@ module.exports = models => {
   route.route('/getDashboardTransaksiDaily').get(getDashboardTransaksiDaily(models))
   route.route('/getDashboardUserActive').get(getDashboardUserActive(models))
   route.route('/getDashboardProduct').get(getDashboardProduct(models))
+  route.route('/getDashboardShipping').get(getDashboardShipping(models))
+  route.route('/getDashboardCourier').get(getDashboardCourier(models))
   route.route('/hitManualKMart').post(verifyToken, hitManualKMart())
   route.route('/getdataHarian').get(verifyToken, getdataHarian())
   route.route('/getdataOrder').get(verifyToken, getdataOrder())
