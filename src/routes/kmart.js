@@ -88,7 +88,7 @@ module.exports = models => {
   route.route('/exportExcelOrderProduct').put(exportExcelOrderProduct())
   route.route('/exportExcelSurveyDNM').get(exportExcelSurveyDNM())
   route.route('/exportExcelOrderProductSummary').put(exportExcelOrderProductSummary())
-  route.route('/testing').get(testing(models))
+  route.route('/testing').post(testing(models))
   route.route('/detailTransaksiOrder').put(detailTransaksiOrder())
   route.route('/detailOrderProduct').put(detailOrderProduct())
   // ----- PLBBO ----- //

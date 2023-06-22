@@ -9,6 +9,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 const KMART_BASE_URL = 'https://kld-api-stg.k-mart.co.id/v1/'
 const KNET_BASE_URL = 'https://api.k-link.dev/api/'
+const KNET_PAYMENT_BASE_URL = 'https://service-payment.k-link.dev/'
 const PLBBO_BASE_URL = 'https://plbbo.akademiinspiradzi.com/wp-json/v1/'
 const TOKEN = process.env.TOKEN
 const XINTERSERVICECALL = process.env.XINTERSERVICECALL
@@ -28,23 +29,56 @@ async function loginKnet () {
 	return login
 }
 
+async function loginPayment () {
+	const { data: login } = await request({
+		url: `${KNET_PAYMENT_BASE_URL}auth/login`,
+		method: 'POST',
+		data: {
+			email: "kmart_prod@k-link.co.id",
+			password: "asdqwe123"
+		},
+		headers: {
+			'Content-Type': 'application/json'
+		},
+	})
+	return login
+}
+
 function hitManualKMart () {
   return async (req, res, next) => {
     try {
-			const { data: response } = await request({
-				url: `${KMART_BASE_URL}orders/webhook/transaction-success`,
+			const login = await loginPayment()
+			const { data: respon } = await request({
+				url: `${KNET_PAYMENT_BASE_URL}api/payment_status`,
 				method: 'POST',
 				data: {
-					status: 'success',
-					order_id: req.body.orderNumber,
-					is_mydoc: '0'
+					order_id: req.body.orderNumber
 				},
 				headers: {
-					// 'Authorization': `Bearer ${TOKEN}`,
-					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+					'Content-Type': 'application/json',
+					'Authorization': `${login.Authorization}`,
 				},
 			})
-			return OK(res, response.data);
+
+			const urlWebhook = _.split(req.body.orderNumber, "-")[0] === "INV" ? "transaction-success" : "transaction-success-print-card"
+
+			if(respon.status.payment_notification === "True"){
+				const { data: response } = await request({
+					url: `${KMART_BASE_URL}orders/webhook/${urlWebhook}`,
+					method: 'POST',
+					data: {
+						status: 'success',
+						order_id: req.body.orderNumber,
+						is_mydoc: '0'
+					},
+					headers: {
+						// 'Authorization': `Bearer ${TOKEN}`,
+						'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+					},
+				})
+				return OK(res, response.data);
+			}
+			return OK(res, `${req.body.orderNumber} belum dibayar`);
     } catch (err) {
 			return NOT_FOUND(res, err.message)
     }
@@ -2027,87 +2061,20 @@ function detailOrderProduct (models) {
 
 function testing (models) {
   return async (req, res, next) => {
-		// let { startdate, enddate, kode, kategoriProduct } = req.query
     try {
-			let tahun = new Date().getFullYear()
-			// let tahun = '2023'
-			let hasil = []
-			const login = await loginKnet()
-			for(let i=1; i <= 12; i++) {
-				let jumlah_hari = new Date(tahun, i, 0).getDate()
-				let bulan = i >= 10 ? i : "0"+i
-				const getBody = {
-					dateFrom: tahun+"-"+bulan+"-01",
-					dateTo: tahun+"-"+bulan+"-"+jumlah_hari
-				}
-				const { data: response } = await request({
-					url: `${KNET_BASE_URL}v.1/getKMartData`,
-					method: 'POST',
-					data: getBody,
-					headers: {
-						'Content-Type': 'application/json',
-						'Authorization': `Bearer ${login.token}`,
-					},
-				})
-				if(response){
-					console.log("bulan "+bulanValues(tahun+"-"+i+"-01"));
-					let groupbyData = _.groupBy(response.resTransDetailPerDate, val => val.datetrans)
-	
-					let kumpul = await Promise.all(Object.entries(groupbyData).map(val => {
-						let key = val[0]
-						let data = val[1]
-						let trx = []
-						data.map(v => {
-							trx.push({
-								transaksi: {
-									period: v.bonusmonth,
-									date: v.datetrans,
-									order_no: v.orderno,
-									reff_no: v.token,
-								},
-								distributor: {
-									code: v.id_memb,
-									name: v.nmmember,
-								},
-								total: {
-									dp: v.totPayDP,
-									bv: v.total_bv,
-								},
-							})
-						})
-						return { key, trx }
-					})) 
-	
-					let meta = {
-						dp: 0,
-						bv: 0,
-					}
-					let dataTransaksi = []
-					kumpul.map(async vall => {
-						dataTransaksi.push(...vall.trx)
-						await Promise.all(vall.trx.map(val => {
-							meta.dp += val.total.dp
-							meta.bv += val.total.bv
-						}))
-					})
-	
-					hasil.push({
-						bulan: bulanValues(tahun+"-"+i+"-01"),
-						dataJumlah: meta
-					})
-				}
-			}
-			hasil.map(async val => {
-				let kirimdata = { 
-					tahun: tahun,
-					bulan: val.bulan,
-					dp: val.dataJumlah.dp,
-					bv: val.dataJumlah.bv
-				 }
-				await models.Transaksi.update(kirimdata, {where: { bulan: val.bulan }})
+			const login = await loginPayment()
+			const { data: response } = await request({
+				url: `${KNET_PAYMENT_BASE_URL}api/payment_status`,
+				method: 'POST',
+				data: {
+					order_id: "INV-230620-N6NGSYS"
+				},
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `${login.Authorization}`,
+				},
 			})
-
-			return OK(res, hasil);
+			return OK(res, response.status.payment_notification);
     } catch (err) {
 			return NOT_FOUND(res, err.message)
     }
