@@ -2059,6 +2059,29 @@ function detailOrderProduct (models) {
   }  
 }
 
+function consumerMember (models) {
+  return async (req, res, next) => {
+		let { kategori = 'New', startdate, enddate, keyword, page, limit = 20 } = req.query
+    try {
+			const url = kategori === 'New' ? 'list-member-new' : 'list-member-upgrade'
+			const { data: response } = await request({
+				url: `${KMART_BASE_URL}users/consumers/member/${url}?last=${page}&limit=${limit}${startdate?`&startDate=${startdate}`:''}${enddate?`&endDate=${enddate}`:''}${keyword?`&keyword=${keyword}`:''}`,
+				method: 'GET',
+				headers: {
+					// 'Authorization': `Bearer ${TOKEN}`,
+					'X-INTER-SERVICE-CALL': `${XINTERSERVICECALL}`,
+				},
+			})
+
+			const { data } = response;
+
+			return OK(res, data);
+    } catch (err) {
+			return NOT_FOUND(res, err.message)
+    }
+  }  
+}
+
 function testing (models) {
   return async (req, res, next) => {
     try {
@@ -2142,6 +2165,7 @@ module.exports = {
   exportExcelOrderProductSummary,
   detailTransaksiOrder,
   detailOrderProduct,
+  consumerMember,
   testing,
 	// ----- PLBBO ----- //
 	getBiodata,
