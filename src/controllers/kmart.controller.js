@@ -8,8 +8,8 @@ const dayjs = require('dayjs')
 const dotenv = require('dotenv');
 dotenv.config();
 const KMART_BASE_URL = 'https://kld-api-stg.k-mart.co.id/v1/'
-const KNET_BASE_URL = 'https://api.k-link.dev/api/'
-const KNET_PAYMENT_BASE_URL = 'https://service-payment.k-link.dev/'
+const KNET_BASE_URL = 'https://api.k-link.us/api/'
+const KNET_PAYMENT_BASE_URL = 'https://service-payment.k-link.us/'
 const PLBBO_BASE_URL = 'https://plbbo.akademiinspiradzi.com/wp-json/v1/'
 const TOKEN = process.env.TOKEN
 const XINTERSERVICECALL = process.env.XINTERSERVICECALL
